@@ -8,14 +8,6 @@
         =========================================
         
         This module provides integration with HKA's electronic invoicing system for Panama.
-        
-        Features:
-        - RUC verification and validation
-        - Electronic invoice generation and submission
-        - Support for all fiscal document types
-        - Document cancellation
-        - Integration with inventory management
-        - Multi-language support (English/Spanish)
     """,
     'author': 'Independent Solutions',
     'website': 'https://www.isolpa.com',
@@ -31,12 +23,12 @@
         'security/isfehka_security.xml',
         'security/ir.model.access.csv',
         'data/isfehka_data.xml',
-        'report/account_move_report.xml',
-        'report/account_move_templates.xml',
         'views/res_config_settings_views.xml',
         'views/res_partner_views.xml',
         'views/account_move_views.xml',
         'views/menu_views.xml',
+        'report/account_move_report.xml',
+        'report/account_move_templates.xml',
     ],
     'external_dependencies': {
         'python': ['zeep'],
