@@ -28,13 +28,13 @@ class ResPartner(models.Model):
     )
 
     @api.constrains('ruc')
-    def _check_ruc_format(self):
-        for partner in self:
-            if partner.ruc:
-                if not partner.ruc.isdigit():
-                    raise ValidationError(_('El RUC debe contener solo números'))
-                if len(partner.ruc) < 8 or len(partner.ruc) > 10:
-                    raise ValidationError(_('El RUC debe tener entre 8 y 10 dígitos'))
+    #def _check_ruc_format(self):
+        #for partner in self:
+            #if partner.ruc:
+                #if not partner.ruc.isdigit():
+                #    raise ValidationError(_('El RUC debe contener solo números'))
+                #if len(partner.ruc) < 8 or len(partner.ruc) > 10:
+                #    raise ValidationError(_('El RUC debe tener entre 8 y 10 dígitos'))
 
     def action_verify_ruc(self):
         """Verify RUC with HKA service"""
