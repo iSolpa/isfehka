@@ -1,3 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_hka_service_user,hka.service.user,isfehka.model_hka_service,isfehka.group_isfehka_user,1,1,1,0
-access_hka_service_manager,hka.service.manager,isfehka.model_hka_service,isfehka.group_isfehka_manager,1,1,1,1 
+access_hka_service_manager,hka.service.manager,isfehka.model_hka_service,isfehka.group_isfehka_manager,1,1,1,1
