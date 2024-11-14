@@ -15,51 +15,36 @@
         <field name="name">res.config.settings.view.form.inherit.isfehka</field>
         <field name="model">res.config.settings</field>
         <field name="priority" eval="90"/>
-        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="inherit_id" ref="account.res_config_settings_view_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//div[@id='companies']" position="after">
-                <!-- Electronic Invoicing Section -->
-                <setting id="isfehka_settings" string="HKA Electronic Invoicing" data-key="isfehka">
-                    <h2>HKA Electronic Invoicing</h2>
-                    <div class="row mt16">
+            <xpath expr="//div[@data-key='account']" position="inside">
+                <block title="Electronic Invoicing" name="isfehka_settings">
+                    <setting string="HKA Electronic Invoicing" help="Configure HKA electronic invoicing integration">
                         <!-- Test Mode Field -->
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_left_pane">
+                        <div class="content-group">
+                            <div class="row mt16">
+                                <label string="Test Mode" for="isfehka_test_mode" class="col-lg-3 o_light_label"/>
                                 <field name="isfehka_test_mode"/>
-                            </div>
-                            <div class="o_setting_right_pane">
-                                <label for="isfehka_test_mode"/>
-                                <div class="text-muted">
-                                    Enable test mode for development environment
-                                </div>
                             </div>
                         </div>
 
                         <!-- HKA Credentials Fields -->
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_right_pane">
-                                <span class="o_form_label">HKA Credentials</span>
-                                <div class="text-muted">
-                                    Configure credentials for HKA service
-                                </div>
-                                <div class="content-group">
-                                    <div class="row mt16">
-                                        <label class="col-lg-3 o_light_label" for="isfehka_token_empresa">Company Token</label>
-                                        <field name="isfehka_token_empresa" password="True"/>
-                                    </div>
-                                    <div class="row mt16">
-                                        <label class="col-lg-3 o_light_label" for="isfehka_token_password">Password</label>
-                                        <field name="isfehka_token_password" password="True"/>
-                                    </div>
-                                    <div class="row mt16">
-                                        <label class="col-lg-3 o_light_label" for="isfehka_wsdl_url">WSDL URL</label>
-                                        <field name="isfehka_wsdl_url"/>
-                                    </div>
-                                </div>
+                        <div class="content-group">
+                            <div class="row mt16">
+                                <label string="Company Token" for="isfehka_token_empresa" class="col-lg-3 o_light_label"/>
+                                <field name="isfehka_token_empresa" password="True"/>
+                            </div>
+                            <div class="row mt16">
+                                <label string="Password" for="isfehka_token_password" class="col-lg-3 o_light_label"/>
+                                <field name="isfehka_token_password" password="True"/>
+                            </div>
+                            <div class="row mt16">
+                                <label string="WSDL URL" for="isfehka_wsdl_url" class="col-lg-3 o_light_label"/>
+                                <field name="isfehka_wsdl_url"/>
                             </div>
                         </div>
-                    </div>
-                </setting>
+                    </setting>
+                </block>
             </xpath>
         </field>
     </record>
