@@ -13,10 +13,11 @@
                         type="object" 
                         string="Verificar RUC" 
                         class="oe_highlight"
-                        attrs="{'invisible': [('ruc_verified', '=', True)]}"/>
+                        invisible="ruc_verified"/>
                 <field name="ruc_verified" invisible="1"/>
-                <field name="ruc_verification_date" readonly="1" 
-                       attrs="{'invisible': [('ruc_verified', '=', False)]}"/>
+                <field name="ruc_verification_date" 
+                       readonly="1" 
+                       invisible="not ruc_verified"/>
             </xpath>
         </field>
     </record>
