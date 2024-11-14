@@ -12,16 +12,16 @@
                         type="object" 
                         string="Anular en HKA" 
                         class="oe_highlight"
-                        attrs="{'invisible': [('hka_status', '!=', 'sent')]}"
+                        invisible="hka_status != 'sent'"
                         groups="isfehka.group_isfehka_user"/>
             </button>
 
             <!-- Add HKA fields in form -->
             <xpath expr="//group[@id='header_right_group']" position="inside">
                 <field name="tipo_documento" 
-                       attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                       readonly="state != 'draft'"/>
                 <field name="naturaleza_operacion" 
-                       attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                       readonly="state != 'draft'"/>
             </xpath>
 
             <!-- Add HKA status page -->
@@ -32,8 +32,8 @@
                             <field name="hka_status"/>
                             <field name="hka_cufe"/>
                             <field name="motivo_anulacion" 
-                                   attrs="{'invisible': [('hka_status', '!=', 'cancelled')],
-                                          'required': [('hka_status', '=', 'cancelled')]}"/>
+                                   invisible="hka_status != 'cancelled'"
+                                   required="hka_status == 'cancelled'"/>
                         </group>
                         <group>
                             <field name="hka_message"/>
