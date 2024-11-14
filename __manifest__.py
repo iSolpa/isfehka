@@ -17,7 +17,6 @@
         'account',
         'l10n_pa',
         'stock',
-        'base_setup',
     ],
     'data': [
         'security/isfehka_security.xml',

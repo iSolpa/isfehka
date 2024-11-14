@@ -21,20 +21,6 @@ class ResConfigSettings(models.TransientModel):
         config_parameter='isfehka.test_mode'
     )
 
-    # Required field from account module to avoid the error
-    account_tax_periodicity = fields.Selection(
-        related='company_id.account_tax_periodicity',
-        readonly=False
-    )
-    account_tax_periodicity_reminder_day = fields.Integer(
-        related='company_id.account_tax_periodicity_reminder_day',
-        readonly=False
-    )
-    account_tax_periodicity_journal_id = fields.Many2one(
-        related='company_id.account_tax_periodicity_journal_id',
-        readonly=False
-    )
-
     @api.model
     def get_values(self):
         res = super(ResConfigSettings, self).get_values()
