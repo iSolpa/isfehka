@@ -2,6 +2,7 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import zeep
 import logging
+import base64
 
 _logger = logging.getLogger(__name__)
 
@@ -40,7 +41,8 @@ class HKAService(models.Model):
         try:
             response = client.service.ConsultarRucDV(
                 consultarRucDVRequest={
-                    **credentials,
+                    'tokenEmpresa': credentials['tokenEmpresa'],
+                    'tokenPassword': credentials['tokenPassword'],
                     'tipoRuc': tipo_ruc,
                     'ruc': ruc,
                 }
@@ -57,10 +59,25 @@ class HKAService(models.Model):
         
         try:
             response = client.service.Enviar(
-                **credentials,
-                **invoice_data
+                tokenEmpresa=credentials['tokenEmpresa'],
+                tokenPassword=credentials['tokenPassword'],
+                documento=invoice_data
             )
-            return self._process_response(response)
+            result = self._process_response(response)
+            
+            # If invoice was sent successfully, get XML and PDF
+            if result.get('success'):
+                datos_documento = {
+                    'codigoSucursalEmisor': invoice_data.get('codigoSucursalEmisor'),
+                    'numeroDocumentoFiscal': invoice_data.get('datosTransaccion', {}).get('numeroDocumentoFiscal'),
+                    'puntoFacturacionFiscal': invoice_data.get('datosTransaccion', {}).get('puntoFacturacionFiscal'),
+                    'tipoDocumento': invoice_data.get('datosTransaccion', {}).get('tipoDocumento'),
+                    'tipoEmision': invoice_data.get('datosTransaccion', {}).get('tipoEmision'),
+                }
+                result['xml'] = self.get_xml_document(datos_documento)
+                result['pdf'] = self.get_pdf_document(datos_documento)
+            
+            return result
         except Exception as e:
             _logger.error('Invoice submission error: %s', str(e))
             raise UserError(_('Error sending invoice: %s') % str(e))
@@ -72,30 +89,124 @@ class HKAService(models.Model):
         
         try:
             response = client.service.AnulacionDocumento(
-                **credentials,
-                **cancel_data
+                tokenEmpresa=credentials['tokenEmpresa'],
+                tokenPassword=credentials['tokenPassword'],
+                motivoAnulacion=cancel_data.get('motivoAnulacion'),
+                datosDocumento=cancel_data.get('datosDocumento')
             )
-            return self._process_response(response)
+            result = self._process_response(response)
+            
+            # If document was cancelled successfully, get XML and PDF of cancellation
+            if result.get('success'):
+                result['xml'] = self.get_xml_document(cancel_data.get('datosDocumento'))
+                result['pdf'] = self.get_pdf_document(cancel_data.get('datosDocumento'))
+            
+            return result
         except Exception as e:
             _logger.error('Document cancellation error: %s', str(e))
             raise UserError(_('Error cancelling document: %s') % str(e))
+
+    def get_xml_document(self, datos_documento):
+        """Get XML document from HKA service"""
+        client = self.get_client()
+        credentials = self.get_credentials()
+        
+        try:
+            # According to WSDL, DescargaXML expects tokenEmpresa, tokenPassword and datosDocumento
+            response = client.service.DescargaXML(
+                tokenEmpresa=credentials['tokenEmpresa'],
+                tokenPassword=credentials['tokenPassword'],
+                datosDocumento=datos_documento
+            )
+            
+            # Check response structure from WSDL
+            if response and hasattr(response, 'codigo') and response.codigo in ['200', '201']:
+                # WSDL shows documento is base64 encoded string
+                if hasattr(response, 'documento') and response.documento:
+                    try:
+                        return base64.b64decode(response.documento)
+                    except Exception as e:
+                        _logger.error('Error decoding XML document: %s', str(e))
+                _logger.warning('XML document not found in response')
+            else:
+                _logger.warning('Invalid response from HKA XML service: %s', 
+                              getattr(response, 'mensaje', 'Unknown error'))
+            return False
+        except Exception as e:
+            _logger.error('XML download error: %s', str(e))
+            return False
+
+    def get_pdf_document(self, datos_documento):
+        """Get PDF document from HKA service"""
+        client = self.get_client()
+        credentials = self.get_credentials()
+        
+        try:
+            # According to WSDL, DescargaPDF expects tokenEmpresa, tokenPassword and datosDocumento
+            response = client.service.DescargaPDF(
+                tokenEmpresa=credentials['tokenEmpresa'],
+                tokenPassword=credentials['tokenPassword'],
+                datosDocumento=datos_documento
+            )
+            
+            # Check response structure from WSDL
+            if response and hasattr(response, 'codigo') and response.codigo in ['200', '201']:
+                # WSDL shows documento is base64 encoded string
+                if hasattr(response, 'documento') and response.documento:
+                    try:
+                        return base64.b64decode(response.documento)
+                    except Exception as e:
+                        _logger.error('Error decoding PDF document: %s', str(e))
+                _logger.warning('PDF document not found in response')
+            else:
+                _logger.warning('Invalid response from HKA PDF service: %s', 
+                              getattr(response, 'mensaje', 'Unknown error'))
+            return False
+        except Exception as e:
+            _logger.error('PDF download error: %s', str(e))
+            return False
 
     def _process_response(self, response):
         """Process HKA service response"""
         if self.env.user.has_group('base.group_no_one'):
             _logger.info('ISFEHKA Response: %s', response)
-        if hasattr(response, 'Codigo'):
-            if response.Codigo == 200:
+
+        # Check if response has codigo field
+        if hasattr(response, 'codigo'):
+            # Success codes are '200' or '201'
+            if response.codigo in ['200', '201']:
+                data = {}
+                
+                # Handle RUC verification response
+                if hasattr(response, 'infoRuc') and response.infoRuc:
+                    data = {
+                        'dv': response.infoRuc.dv,
+                        'razonSocial': response.infoRuc.razonSocial,
+                        'tipoRuc': response.infoRuc.tipoRuc,
+                        'ruc': response.infoRuc.ruc,
+                    }
+                
+                # Handle invoice submission response
+                elif hasattr(response, 'cufe'):
+                    data = {
+                        'cufe': response.cufe,
+                        'qr': getattr(response, 'qr', ''),
+                        'fechaRecepcionDGI': getattr(response, 'fechaRecepcionDGI', ''),
+                        'nroProtocoloAutorizacion': getattr(response, 'nroProtocoloAutorizacion', ''),
+                    }
+
                 return {
                     'success': True,
-                    'data': response,
+                    'data': data,
+                    'message': getattr(response, 'mensaje', 'Success')
                 }
             else:
                 return {
                     'success': False,
-                    'message': getattr(response, 'Mensaje', 'Unknown error'),
+                    'message': getattr(response, 'mensaje', 'Error processing request')
                 }
+
         return {
             'success': False,
-            'message': _('Invalid response from HKA service'),
+            'message': _('Invalid response from HKA service')
         } 
