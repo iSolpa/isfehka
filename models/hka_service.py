@@ -5,9 +5,11 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
-class HKAService(models.AbstractModel):
+class HKAService(models.Model):
     _name = 'hka.service'
     _description = 'HKA Web Service Integration'
+
+    name = fields.Char(string='Name', default='HKA Service')
 
     def get_client(self):
         """Get configured SOAP client for HKA service"""
