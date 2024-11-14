@@ -166,4 +166,22 @@ pip3 install zeep
 2. Updates and Maintenance:
    - Regular module updates for bug fixes
    - Compatibility updates for Odoo versions
-   - Feature
+   - Feature enhancements based on feedback
+
+3. Documentation:
+   - Online documentation: https://
+   - Release notes: https://github.com/isolpa/isfehka/releases
+   - API documentation available upon request
+
+### Version Information
+
+- Module Version: 1.0.0
+- Supported Odoo Versions: 17.0, 18.0
+- Last Updated: November 2024
+- License: Odoo Proprietary License (OPL-1)
+
+### Legal Compliance
+
+- No warranties or guarantees are provided by Independent Solutions.
+
+For additional support or custom development needs, please contact Independent Solutions.
