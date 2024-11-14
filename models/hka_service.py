@@ -82,6 +82,8 @@ class HKAService(models.Model):
 
     def _process_response(self, response):
         """Process HKA service response"""
+        if self.env.user.has_group('base.group_no_one'):
+            _logger.info('Response: %s', response)
         if hasattr(response, 'Codigo'):
             if response.Codigo == 200:
                 return {
