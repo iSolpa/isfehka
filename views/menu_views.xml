@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Main Menu -->
+    <menuitem id="menu_isfehka_root"
+              name="Facturación Electrónica"
+              sequence="5"
+              web_icon="isfehka,static/description/icon.png"
+              groups="isfehka.group_isfehka_user"/>
+
+    <!-- Configuration Menu -->
+    <menuitem id="menu_isfehka_config"
+              name="Configuración"
+              parent="menu_isfehka_root"
+              sequence="100"
+              groups="isfehka.group_isfehka_manager"/>
+
+    <!-- Settings Menu Item -->
+    <menuitem id="menu_isfehka_settings"
+              name="Ajustes"
+              parent="menu_isfehka_config"
+              action="action_isfehka_config"
+              sequence="10"/>
+
+    <!-- Reports Menu -->
+    <menuitem id="menu_isfehka_reports"
+              name="Reportes"
+              parent="menu_isfehka_root"
+              sequence="90"/>
+</odoo> 

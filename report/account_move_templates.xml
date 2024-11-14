@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_invoice_document_hka">
+        <t t-call="web.external_layout">
+            <t t-set="o" t-value="o.with_context(lang=lang)"/>
+            <div class="page">
+                <h2>
+                    <span t-if="o.move_type == 'out_invoice'">Factura Electrónica</span>
+                    <span t-elif="o.move_type == 'out_refund'">Nota de Crédito Electrónica</span>
+                </h2>
+
+                <!-- HKA Information -->
+                <div class="row mt32 mb32">
+                    <div class="col-auto mw-100 mb-2">
+                        <strong>CUFE:</strong>
+                        <p class="m-0" t-field="o.hka_cufe"/>
+                    </div>
+                    <div class="col-auto mw-100 mb-2">
+                        <strong>Estado:</strong>
+                        <p class="m-0" t-field="o.hka_status"/>
+                    </div>
+                    <div class="col-auto mw-100 mb-2">
+                        <strong>Tipo de Documento:</strong>
+                        <p class="m-0" t-field="o.tipo_documento"/>
+                    </div>
+                </div>
+
+                <!-- Partner Information -->
+                <div class="row mt32 mb32">
+                    <div class="col-auto mw-100 mb-2">
+                        <strong>Cliente:</strong>
+                        <p class="m-0" t-field="o.partner_id.name"/>
+                        <p class="m-0">RUC: <span t-field="o.partner_id.ruc"/> DV: <span t-field="o.partner_id.dv"/></p>
+                        <p class="m-0" t-field="o.partner_id.street"/>
+                        <p class="m-0" t-field="o.partner_id.email"/>
+                    </div>
+                </div>
+
+                <!-- Invoice Lines -->
+                <table class="table table-sm o_main_table">
+                    <thead>
+                        <tr>
+                            <th name="th_description" class="text-left">Descripción</th>
+                            <th name="th_quantity" class="text-right">Cantidad</th>
+                            <th name="th_priceunit" class="text-right">Precio Unit.</th>
+                            <th name="th_taxes" class="text-right">ITBMS</th>
+                            <th name="th_subtotal" class="text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="invoice_tbody">
+                        <t t-foreach="o.invoice_line_ids" t-as="line">
+                            <tr>
+                                <td name="account_invoice_line_name"><span t-field="line.name"/></td>
+                                <td class="text-right">
+                                    <span t-field="line.quantity"/>
+                                    <span t-field="line.product_uom_id" groups="uom.group_uom"/>
+                                </td>
+                                <td class="text-right">
+                                    <span t-field="line.price_unit"/>
+                                </td>
+                                <td class="text-right">
+                                    <span t-esc="', '.join(map(lambda x: (x.description or x.name), line.tax_ids))"/>
+                                </td>
+                                <td class="text-right o_price_total">
+                                    <span t-field="line.price_subtotal"/>
+                                </td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+
+                <div class="clearfix">
+                    <div id="total" class="row">
+                        <div class="col-4 ml-auto">
+                            <table class="table table-sm">
+                                <tr class="border-black o_subtotal">
+                                    <td><strong>Subtotal</strong></td>
+                                    <td class="text-right">
+                                        <span t-field="o.amount_untaxed"/>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>ITBMS</td>
+                                    <td class="text-right">
+                                        <span t-field="o.amount_tax"/>
+                                    </td>
+                                </tr>
+                                <tr class="border-black o_total">
+                                    <td><strong>Total</strong></td>
+                                    <td class="text-right">
+                                        <span t-field="o.amount_total"/>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_invoice_hka">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="isfehka.report_invoice_document_hka"/>
+            </t>
+        </t>
+    </template>
+</odoo> 

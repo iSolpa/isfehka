@@ -1,0 +1,124 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* isfehka
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 17.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-01-15 12:00+0000\n"
+"PO-Revision-Date: 2024-01-15 12:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: Spanish\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
+
+#. module: isfehka
+#: model:ir.model.fields,field_description:isfehka.field_account_move__hka_status
+msgid "HKA Status"
+msgstr "Estado HKA"
+
+#. module: isfehka
+#: model:ir.model.fields,field_description:isfehka.field_account_move__hka_cufe
+msgid "CUFE"
+msgstr "CUFE"
+
+#. module: isfehka
+#: model:ir.model.fields,help:isfehka.field_account_move__hka_cufe
+msgid "Código Único de Factura Electrónica"
+msgstr "Código Único de Factura Electrónica"
+
+#. module: isfehka
+#: model:ir.model.fields,field_description:isfehka.field_account_move__tipo_documento
+msgid "Document Type"
+msgstr "Tipo de Documento"
+
+#. module: isfehka
+#: model:ir.model.fields.selection,name:isfehka.selection__account_move__tipo_documento__01
+msgid "Internal Operation Invoice"
+msgstr "Factura de Operación Interna"
+
+#. module: isfehka
+#: model:ir.model.fields.selection,name:isfehka.selection__account_move__tipo_documento__02
+msgid "Import Invoice"
+msgstr "Factura de Importación"
+
+#. module: isfehka
+#: model:ir.model.fields.selection,name:isfehka.selection__account_move__tipo_documento__03
+msgid "Export Invoice"
+msgstr "Factura de Exportación"
+
+#. module: isfehka
+#: model:ir.model.fields.selection,name:isfehka.selection__account_move__hka_status__draft
+msgid "Draft"
+msgstr "Borrador"
+
+#. module: isfehka
+#: model:ir.model.fields.selection,name:isfehka.selection__account_move__hka_status__sent
+msgid "Sent"
+msgstr "Enviado"
+
+#. module: isfehka
+#: model:ir.model.fields.selection,name:isfehka.selection__account_move__hka_status__cancelled
+msgid "Cancelled"
+msgstr "Anulado"
+
+#. module: isfehka
+#: model:ir.model.fields.selection,name:isfehka.selection__account_move__hka_status__error
+msgid "Error"
+msgstr "Error"
+
+#. module: isfehka
+#: model:ir.model.fields,field_description:isfehka.field_res_partner__ruc
+msgid "RUC"
+msgstr "RUC"
+
+#. module: isfehka
+#: model:ir.model.fields,help:isfehka.field_res_partner__ruc
+msgid "Registro Único de Contribuyente"
+msgstr "Registro Único de Contribuyente"
+
+#. module: isfehka
+#: model:ir.model.fields,field_description:isfehka.field_res_partner__dv
+msgid "DV"
+msgstr "DV"
+
+#. module: isfehka
+#: model:ir.model.fields,help:isfehka.field_res_partner__dv
+msgid "Dígito Verificador"
+msgstr "Dígito Verificador"
+
+#. module: isfehka
+#: model:ir.ui.menu,name:isfehka.menu_isfehka_root
+msgid "Electronic Invoicing"
+msgstr "Facturación Electrónica"
+
+#. module: isfehka
+#: model:ir.ui.menu,name:isfehka.menu_isfehka_config
+msgid "Configuration"
+msgstr "Configuración"
+
+#. module: isfehka
+#: model:ir.ui.menu,name:isfehka.menu_isfehka_reports
+msgid "Reports"
+msgstr "Reportes"
+
+#. module: isfehka
+#: code:addons/isfehka/models/account_move.py:0
+#, python-format
+msgid "This invoice has already been sent to HKA"
+msgstr "Esta factura ya ha sido enviada a HKA"
+
+#. module: isfehka
+#: code:addons/isfehka/models/account_move.py:0
+#, python-format
+msgid "Document sent successfully"
+msgstr "Documento enviado exitosamente"
+
+#. module: isfehka
+#: code:addons/isfehka/models/account_move.py:0
+#, python-format
+msgid "You must specify the cancellation reason"
+msgstr "Debe especificar el motivo de anulación" 

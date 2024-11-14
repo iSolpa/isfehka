@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_report_invoice_hka" model="ir.actions.report">
+        <field name="name">Factura Electrónica HKA</field>
+        <field name="model">account.move</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">isfehka.report_invoice_hka</field>
+        <field name="report_file">isfehka.report_invoice_hka</field>
+        <field name="print_report_name">'Factura Electrónica - %s' % object.name</field>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">report</field>
+    </record>
+</odoo> 

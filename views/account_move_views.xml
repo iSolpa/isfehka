@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Form View -->
+    <record id="view_move_form_isfehka" model="ir.ui.view">
+        <field name="name">account.move.form.isfehka</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <!-- Add HKA buttons in header -->
+            <button name="action_post" position="before">
+                <button name="action_cancel_hka" 
+                        type="object" 
+                        string="Anular en HKA" 
+                        class="oe_highlight"
+                        attrs="{'invisible': [('hka_status', '!=', 'sent')]}"
+                        groups="isfehka.group_isfehka_user"/>
+            </button>
+
+            <!-- Add HKA fields in form -->
+            <xpath expr="//group[@id='header_right_group']" position="inside">
+                <field name="tipo_documento" 
+                       attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                <field name="naturaleza_operacion" 
+                       attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+            </xpath>
+
+            <!-- Add HKA status page -->
+            <notebook position="inside">
+                <page string="Facturación Electrónica" name="hka_info">
+                    <group>
+                        <group>
+                            <field name="hka_status"/>
+                            <field name="hka_cufe"/>
+                            <field name="motivo_anulacion" 
+                                   attrs="{'invisible': [('hka_status', '!=', 'cancelled')],
+                                          'required': [('hka_status', '=', 'cancelled')]}"/>
+                        </group>
+                        <group>
+                            <field name="hka_message"/>
+                        </group>
+                    </group>
+                </page>
+            </notebook>
+        </field>
+    </record>
+
+    <!-- Tree View -->
+    <record id="view_move_tree_isfehka" model="ir.ui.view">
+        <field name="name">account.move.tree.isfehka</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_tree"/>
+        <field name="arch" type="xml">
+            <field name="state" position="after">
+                <field name="hka_status"/>
+                <field name="hka_cufe"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_account_move_filter_isfehka" model="ir.ui.view">
+        <field name="name">account.move.select.isfehka</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_move_filter"/>
+        <field name="arch" type="xml">
+            <field name="name" position="after">
+                <field name="hka_cufe"/>
+                <filter string="Enviado a HKA" name="hka_sent" domain="[('hka_status', '=', 'sent')]"/>
+                <filter string="Error HKA" name="hka_error" domain="[('hka_status', '=', 'error')]"/>
+                <filter string="Anulado en HKA" name="hka_cancelled" domain="[('hka_status', '=', 'cancelled')]"/>
+            </field>
+            <group position="inside">
+                <filter string="Estado HKA" name="group_by_hka_status" context="{'group_by': 'hka_status'}"/>
+                <filter string="Tipo de Documento" name="group_by_tipo_documento" context="{'group_by': 'tipo_documento'}"/>
+            </group>
+        </field>
+    </record>
+</odoo> 
