@@ -3,10 +3,37 @@ from odoo import models, fields, api
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
 
-    isfehka_token_empresa = fields.Char(string='HKA Token Empresa')
-    isfehka_token_password = fields.Char(string='HKA Token Password')
-    isfehka_wsdl_url = fields.Char(string='HKA WSDL URL')
-    isfehka_test_mode = fields.Boolean(string='Test Mode')
+    # HKA Fields
+    isfehka_token_empresa = fields.Char(
+        string='HKA Token Empresa',
+        config_parameter='isfehka.token_empresa'
+    )
+    isfehka_token_password = fields.Char(
+        string='HKA Token Password',
+        config_parameter='isfehka.token_password'
+    )
+    isfehka_wsdl_url = fields.Char(
+        string='HKA WSDL URL',
+        config_parameter='isfehka.wsdl_url'
+    )
+    isfehka_test_mode = fields.Boolean(
+        string='Test Mode',
+        config_parameter='isfehka.test_mode'
+    )
+
+    # Required field from account module to avoid the error
+    account_tax_periodicity = fields.Selection(
+        related='company_id.account_tax_periodicity',
+        readonly=False
+    )
+    account_tax_periodicity_reminder_day = fields.Integer(
+        related='company_id.account_tax_periodicity_reminder_day',
+        readonly=False
+    )
+    account_tax_periodicity_journal_id = fields.Many2one(
+        related='company_id.account_tax_periodicity_journal_id',
+        readonly=False
+    )
 
     @api.model
     def get_values(self):
