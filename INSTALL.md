@@ -33,7 +33,7 @@ pip3 install zeep
    a. Download the module:
    ```bash
    cd /path/to/odoo/addons
-   git clone https://github.com/isolpa/isfehka.git
+   git clone https://github.com/indepsol/isfehka.git
    ```
 
    b. Update Odoo's module list:
@@ -138,6 +138,23 @@ pip3 install zeep
    - Regular audit of user permissions
    - Remove access for inactive users
    - Monitor system logs
+
+### Support and Updates
+
+1. Technical Support:
+   - Email: support@indepsol.net
+   - Website: https://www.indepsol.net
+   - Support hours: Monday-Friday, 8:00 AM - 5:00 PM (Panama Time)
+
+2. Updates and Maintenance:
+   - Regular module updates for bug fixes
+   - Compatibility updates for Odoo versions
+   - Feature enhancements based on feedback
+
+3. Documentation:
+   - Online documentation: https://docs.indepsol.net/isfehka
+   - Release notes: https://github.com/indepsol/isfehka/releases
+   - API documentation available upon request
 
 ### Support and Updates
 
