@@ -17,6 +17,7 @@
         'account',
         'l10n_pa',
         'stock',
+        'point_of_sale',
     ],
     'data': [
         'security/isfehka_security.xml',
@@ -28,6 +29,8 @@
         'views/res_partner_views.xml',
         'views/account_move_views.xml',
         'views/menu_views.xml',
+        'views/pos_config_views.xml',
+        'views/res_branch_views.xml',
         'report/account_move_report.xml',
         'report/account_move_templates.xml',
     ],

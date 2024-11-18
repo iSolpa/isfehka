@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pos_config_form_inherit_isfehka" model="ir.ui.view">
+        <field name="name">pos.config.form.inherit.isfehka</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@id='payment_methods_section']" position="after">
+                <h2>HKA Configuration</h2>
+                <div class="row mt16 o_settings_container">
+                    <div class="col-12 col-lg-6 o_setting_box">
+                        <div class="o_setting_left_pane"/>
+                        <div class="o_setting_right_pane">
+                            <span class="o_form_label">Branch</span>
+                            <div class="text-muted">
+                                Select the branch for this point of sale
+                            </div>
+                            <div class="content-group mt16">
+                                <field name="branch_id"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6 o_setting_box">
+                        <div class="o_setting_left_pane"/>
+                        <div class="o_setting_right_pane">
+                            <span class="o_form_label">HKA POS Code</span>
+                            <div class="text-muted">
+                                Specific Point of Sale code for HKA integration
+                            </div>
+                            <div class="content-group mt16">
+                                <field name="hka_pos_code" placeholder="e.g. 001"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo> 

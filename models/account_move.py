@@ -47,6 +47,19 @@ class AccountMove(models.Model):
         help='Razón por la cual se anula el documento'
     )
 
+    branch_id = fields.Many2one(
+        'res.branch',
+        string='Branch',
+        domain="[('company_id', '=', company_id)]",
+        tracking=True,
+        states={'posted': [('readonly', True)]}
+    )
+
+    @api.onchange('journal_id')
+    def _onchange_journal_branch(self):
+        if self.journal_id and not self.branch_id:
+            self.branch_id = self.journal_id.branch_id
+
     @api.constrains('partner_id')
     def _check_partner_ruc(self):
         for move in self:
@@ -117,18 +130,38 @@ class AccountMove(models.Model):
         except Exception as e:
             raise UserError(str(e))
 
+    def _get_hka_pos_code(self):
+        """Get the POS code to use for HKA integration"""
+        self.ensure_one()
+        
+        # If invoice comes from POS
+        if hasattr(self, 'pos_order_ids') and self.pos_order_ids:
+            pos_config = self.pos_order_ids[0].config_id
+            if pos_config.hka_pos_code:
+                return pos_config.hka_pos_code
+            if pos_config.branch_id:
+                return pos_config.branch_id.default_pos_code
+        
+        # If no POS order or no specific POS code, use branch default
+        if not self.branch_id:
+            raise UserError(_('Please configure a branch for this invoice'))
+        return self.branch_id.default_pos_code
+
     def _prepare_hka_data(self):
         """Prepare invoice data for HKA"""
         self.ensure_one()
+        if not self.branch_id:
+            raise UserError(_('Please configure a branch for this invoice'))
+            
         return {
             'documento': {
-                'codigoSucursalEmisor': self.journal_id.code or '0000',
+                'codigoSucursalEmisor': self.branch_id.code,
                 'tipoSucursal': '1',
                 'datosTransaccion': {
                     'tipoEmision': '01',
                     'tipoDocumento': self.tipo_documento,
                     'numeroDocumentoFiscal': self.name,
-                    'puntoFacturacionFiscal': self.journal_id.code or '001',
+                    'puntoFacturacionFiscal': self._get_hka_pos_code(),
                     'naturalezaOperacion': self.naturaleza_operacion,
                     'tipoOperacion': '1',
                     'destinoOperacion': '1' if self.partner_id.country_id.code == 'PA' else '2',
@@ -197,9 +230,9 @@ class AccountMove(models.Model):
         """Prepare cancellation data for HKA"""
         return {
             'datosDocumento': {
-                'codigoSucursalEmisor': self.journal_id.code or '0000',
+                'codigoSucursalEmisor': self.branch_id.code,
                 'numeroDocumentoFiscal': self.name,
-                'puntoFacturacionFiscal': self.journal_id.code or '001',
+                'puntoFacturacionFiscal': self._get_hka_pos_code(),
                 'tipoDocumento': self.tipo_documento,
                 'tipoEmision': '01',
             },
