@@ -1,14 +1,5 @@
 from odoo import models, fields, api
 
-class ResProvinciaPa(models.Model):
-    _name = 'res.provincia.pa'
-    _description = 'Provincias de Panamá'
-    _order = 'code'
-
-    name = fields.Char('Nombre', required=True)
-    code = fields.Char('Código', required=True)
-    distrito_ids = fields.One2many('res.distrito.pa', 'provincia_id', 'Distritos')
-
 class ResDistritoPa(models.Model):
     _name = 'res.distrito.pa'
     _description = 'Distritos de Panamá'

@@ -1,9 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_hka_service_user,hka.service.user,model_hka_service,base.group_user,1,1,1,0
 access_hka_service_manager,hka.service.manager,model_hka_service,base.group_system,1,1,1,1
-access_res_provincia_pa_user,res.provincia.pa.user,isfehka.model_res_provincia_pa,base.group_user,1,0,0,0
 access_res_distrito_pa_user,res.distrito.pa.user,isfehka.model_res_distrito_pa,base.group_user,1,0,0,0
 access_res_corregimiento_pa_user,res.corregimiento.pa.user,isfehka.model_res_corregimiento_pa,base.group_user,1,0,0,0
-access_res_provincia_pa_manager,res.provincia.pa.manager,isfehka.model_res_provincia_pa,base.group_system,1,1,1,1
 access_res_distrito_pa_manager,res.distrito.pa.manager,isfehka.model_res_distrito_pa,base.group_system,1,1,1,1
 access_res_corregimiento_pa_manager,res.corregimiento.pa.manager,isfehka.model_res_corregimiento_pa,base.group_system,1,1,1,1
