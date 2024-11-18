@@ -1,34 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_partner_form_inherit_isfehka" model="ir.ui.view">
-        <field name="name">res.partner.form.inherit.isfehka</field>
+    <record id="view_partner_form_isfehka" model="ir.ui.view">
+        <field name="name">res.partner.form.isfehka</field>
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
-            <field name="vat" position="after">
-                <field name="ruc" invisible_if="company_type != 'company'"/>
-                <field name="dv" invisible_if="company_type != 'company'"/>
-                <field name="tipo_contribuyente" invisible_if="company_type != 'company'"/>
+            <xpath expr="//field[@name='vat']" position="after">
+                <field name="ruc" placeholder="RUC"/>
+                <field name="dv" placeholder="DV"/>
+                <field name="tipo_contribuyente"/>
+                <button name="action_verify_ruc" 
+                        type="object" 
+                        string="Verificar RUC" 
+                        class="oe_highlight"
+                        invisible="ruc_verified"/>
                 <field name="ruc_verified" invisible="1"/>
-                <field name="ruc_verification_date" invisible="1"/>
-            </field>
-
-            <field name="state_id" position="after">
+                <field name="ruc_verification_date" 
+                       readonly="1" 
+                       invisible="not ruc_verified"/>
+            </xpath>
+            <xpath expr="//field[@name='state_id']" position="after">
                 <field name="l10n_pa_provincia_id" placeholder="Provincia" class="o_address_state"/>
                 <field name="l10n_pa_distrito_id" placeholder="Distrito" class="o_address_state"/>
                 <field name="l10n_pa_corregimiento_id" placeholder="Corregimiento" class="o_address_state"/>
-            </field>
-
-            <xpath expr="//sheet/div[@name='button_box']" position="inside">
-                <button name="action_verify_ruc" 
-                        type="object" 
-                        class="oe_stat_button" 
-                        icon="fa-check"
-                        invisible_if="company_type != 'company' or ruc_verified">
-                    <div class="o_field_widget o_stat_info">
-                        <span class="o_stat_text">Verificar RUC</span>
-                    </div>
-                </button>
             </xpath>
         </field>
     </record>
