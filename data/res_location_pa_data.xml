@@ -5,415 +5,415 @@
         <record id="distrito_1_1" model="res.distrito.pa">
             <field name="name">BOCAS DEL TORO</field>
             <field name="code">1</field>
-            <field name="state_id" ref="base.state_pa_1"/>
+            <field name="state_id" ref="isfehka.state_pa_1"/>
         </record>
 
         <record id="distrito_1_2" model="res.distrito.pa">
             <field name="name">CHANGUINOLA</field>
             <field name="code">2</field>
-            <field name="state_id" ref="base.state_pa_1"/>
+            <field name="state_id" ref="isfehka.state_pa_1"/>
         </record>
 
         <record id="distrito_1_3" model="res.distrito.pa">
             <field name="name">CHIRIQUI GRANDE</field>
             <field name="code">3</field>
-            <field name="state_id" ref="base.state_pa_1"/>
+            <field name="state_id" ref="isfehka.state_pa_1"/>
         </record>
 
         <record id="distrito_1_4" model="res.distrito.pa">
             <field name="name">ALMIRANTE</field>
             <field name="code">4</field>
-            <field name="state_id" ref="base.state_pa_1"/>
+            <field name="state_id" ref="isfehka.state_pa_1"/>
         </record>
 
         <record id="distrito_13_1" model="res.distrito.pa">
             <field name="name">ARRAIJAN</field>
             <field name="code">1</field>
-            <field name="state_id" ref="base.state_pa_13"/>
+            <field name="state_id" ref="isfehka.state_pa_13"/>
         </record>
 
         <record id="distrito_13_2" model="res.distrito.pa">
             <field name="name">CAPIRA</field>
             <field name="code">2</field>
-            <field name="state_id" ref="base.state_pa_13"/>
+            <field name="state_id" ref="isfehka.state_pa_13"/>
         </record>
 
         <record id="distrito_13_3" model="res.distrito.pa">
             <field name="name">CHAME</field>
             <field name="code">3</field>
-            <field name="state_id" ref="base.state_pa_13"/>
+            <field name="state_id" ref="isfehka.state_pa_13"/>
         </record>
 
         <record id="distrito_13_4" model="res.distrito.pa">
             <field name="name">LA CHORRERA</field>
             <field name="code">4</field>
-            <field name="state_id" ref="base.state_pa_13"/>
+            <field name="state_id" ref="isfehka.state_pa_13"/>
         </record>
 
         <record id="distrito_13_5" model="res.distrito.pa">
             <field name="name">SAN CARLOS</field>
             <field name="code">5</field>
-            <field name="state_id" ref="base.state_pa_13"/>
+            <field name="state_id" ref="isfehka.state_pa_13"/>
         </record>
 
         <record id="distrito_2_1" model="res.distrito.pa">
             <field name="name">AGUADULCE</field>
             <field name="code">1</field>
-            <field name="state_id" ref="base.state_pa_2"/>
+            <field name="state_id" ref="isfehka.state_pa_2"/>
         </record>
 
         <record id="distrito_2_2" model="res.distrito.pa">
             <field name="name">ANTON</field>
             <field name="code">2</field>
-            <field name="state_id" ref="base.state_pa_2"/>
+            <field name="state_id" ref="isfehka.state_pa_2"/>
         </record>
 
         <record id="distrito_2_3" model="res.distrito.pa">
             <field name="name">LA PINTADA</field>
             <field name="code">3</field>
-            <field name="state_id" ref="base.state_pa_2"/>
+            <field name="state_id" ref="isfehka.state_pa_2"/>
         </record>
 
         <record id="distrito_2_4" model="res.distrito.pa">
             <field name="name">NATA</field>
             <field name="code">4</field>
-            <field name="state_id" ref="base.state_pa_2"/>
+            <field name="state_id" ref="isfehka.state_pa_2"/>
         </record>
 
         <record id="distrito_2_5" model="res.distrito.pa">
             <field name="name">OLA</field>
             <field name="code">5</field>
-            <field name="state_id" ref="base.state_pa_2"/>
+            <field name="state_id" ref="isfehka.state_pa_2"/>
         </record>
 
         <record id="distrito_2_6" model="res.distrito.pa">
             <field name="name">PENONOME</field>
             <field name="code">6</field>
-            <field name="state_id" ref="base.state_pa_2"/>
+            <field name="state_id" ref="isfehka.state_pa_2"/>
         </record>
 
         <record id="distrito_3_1" model="res.distrito.pa">
             <field name="name">COLON</field>
             <field name="code">1</field>
-            <field name="state_id" ref="base.state_pa_3"/>
+            <field name="state_id" ref="isfehka.state_pa_3"/>
         </record>
 
         <record id="distrito_3_2" model="res.distrito.pa">
             <field name="name">CHAGRES</field>
             <field name="code">2</field>
-            <field name="state_id" ref="base.state_pa_3"/>
+            <field name="state_id" ref="isfehka.state_pa_3"/>
         </record>
 
         <record id="distrito_3_3" model="res.distrito.pa">
             <field name="name">DONOSO</field>
             <field name="code">3</field>
-            <field name="state_id" ref="base.state_pa_3"/>
+            <field name="state_id" ref="isfehka.state_pa_3"/>
         </record>
 
         <record id="distrito_3_4" model="res.distrito.pa">
             <field name="name">PORTOBELO</field>
             <field name="code">4</field>
-            <field name="state_id" ref="base.state_pa_3"/>
+            <field name="state_id" ref="isfehka.state_pa_3"/>
         </record>
 
         <record id="distrito_3_5" model="res.distrito.pa">
             <field name="name">SANTA ISABEL</field>
             <field name="code">5</field>
-            <field name="state_id" ref="base.state_pa_3"/>
+            <field name="state_id" ref="isfehka.state_pa_3"/>
         </record>
 
         <record id="distrito_4_1" model="res.distrito.pa">
             <field name="name">ALANJE</field>
             <field name="code">1</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_10" model="res.distrito.pa">
             <field name="name">RENACIMIENTO</field>
             <field name="code">10</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_11" model="res.distrito.pa">
             <field name="name">SAN FELIX</field>
             <field name="code">11</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_12" model="res.distrito.pa">
             <field name="name">SAN LORENZO</field>
             <field name="code">12</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_13" model="res.distrito.pa">
             <field name="name">TOLE</field>
             <field name="code">13</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_15" model="res.distrito.pa">
             <field name="name">TIERRAS ALTAS</field>
             <field name="code">15</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_2" model="res.distrito.pa">
             <field name="name">BARU</field>
             <field name="code">2</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_3" model="res.distrito.pa">
             <field name="name">BOQUERON</field>
             <field name="code">3</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_4" model="res.distrito.pa">
             <field name="name">BOQUETE</field>
             <field name="code">4</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_5" model="res.distrito.pa">
             <field name="name">BUGABA</field>
             <field name="code">5</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_6" model="res.distrito.pa">
             <field name="name">DAVID</field>
             <field name="code">6</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_7" model="res.distrito.pa">
             <field name="name">DOLEGA</field>
             <field name="code">7</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_8" model="res.distrito.pa">
             <field name="name">GUALACA</field>
             <field name="code">8</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_4_9" model="res.distrito.pa">
             <field name="name">REMEDIOS</field>
             <field name="code">9</field>
-            <field name="state_id" ref="base.state_pa_4"/>
+            <field name="state_id" ref="isfehka.state_pa_4"/>
         </record>
 
         <record id="distrito_5_1" model="res.distrito.pa">
             <field name="name">CHEPIGANA</field>
             <field name="code">1</field>
-            <field name="state_id" ref="base.state_pa_5"/>
+            <field name="state_id" ref="isfehka.state_pa_5"/>
         </record>
 
         <record id="distrito_5_2" model="res.distrito.pa">
             <field name="name">PINOGANA</field>
             <field name="code">2</field>
-            <field name="state_id" ref="base.state_pa_5"/>
+            <field name="state_id" ref="isfehka.state_pa_5"/>
         </record>
 
         <record id="distrito_5_3" model="res.distrito.pa">
             <field name="name">SANTA FE</field>
             <field name="code">3</field>
-            <field name="state_id" ref="base.state_pa_5"/>
+            <field name="state_id" ref="isfehka.state_pa_5"/>
         </record>
 
         <record id="distrito_6_1" model="res.distrito.pa">
             <field name="name">CHITRE</field>
             <field name="code">1</field>
-            <field name="state_id" ref="base.state_pa_6"/>
+            <field name="state_id" ref="isfehka.state_pa_6"/>
         </record>
 
         <record id="distrito_6_2" model="res.distrito.pa">
             <field name="name">LAS MINAS</field>
             <field name="code">2</field>
-            <field name="state_id" ref="base.state_pa_6"/>
+            <field name="state_id" ref="isfehka.state_pa_6"/>
         </record>
 
         <record id="distrito_6_3" model="res.distrito.pa">
             <field name="name">LOS POZOS</field>
             <field name="code">3</field>
-            <field name="state_id" ref="base.state_pa_6"/>
+            <field name="state_id" ref="isfehka.state_pa_6"/>
         </record>
 
         <record id="distrito_6_4" model="res.distrito.pa">
             <field name="name">OCU</field>
             <field name="code">4</field>
-            <field name="state_id" ref="base.state_pa_6"/>
+            <field name="state_id" ref="isfehka.state_pa_6"/>
         </record>
 
         <record id="distrito_6_5" model="res.distrito.pa">
             <field name="name">PARITA</field>
             <field name="code">5</field>
-            <field name="state_id" ref="base.state_pa_6"/>
+            <field name="state_id" ref="isfehka.state_pa_6"/>
         </record>
 
         <record id="distrito_6_6" model="res.distrito.pa">
             <field name="name">PESE</field>
             <field name="code">6</field>
-            <field name="state_id" ref="base.state_pa_6"/>
+            <field name="state_id" ref="isfehka.state_pa_6"/>
         </record>
 
         <record id="distrito_6_7" model="res.distrito.pa">
             <field name="name">SANTA MARIA</field>
             <field name="code">7</field>
-            <field name="state_id" ref="base.state_pa_6"/>
+            <field name="state_id" ref="isfehka.state_pa_6"/>
         </record>
 
         <record id="distrito_7_1" model="res.distrito.pa">
             <field name="name">GUARARE</field>
             <field name="code">1</field>
-            <field name="state_id" ref="base.state_pa_7"/>
+            <field name="state_id" ref="isfehka.state_pa_7"/>
         </record>
 
         <record id="distrito_7_2" model="res.distrito.pa">
             <field name="name">LAS TABLAS</field>
             <field name="code">2</field>
-            <field name="state_id" ref="base.state_pa_7"/>
+            <field name="state_id" ref="isfehka.state_pa_7"/>
         </record>
 
         <record id="distrito_7_3" model="res.distrito.pa">
             <field name="name">LOS SANTOS</field>
             <field name="code">3</field>
-            <field name="state_id" ref="base.state_pa_7"/>
+            <field name="state_id" ref="isfehka.state_pa_7"/>
         </record>
 
         <record id="distrito_7_4" model="res.distrito.pa">
             <field name="name">MACARACAS</field>
             <field name="code">4</field>
-            <field name="state_id" ref="base.state_pa_7"/>
+            <field name="state_id" ref="isfehka.state_pa_7"/>
         </record>
 
         <record id="distrito_7_5" model="res.distrito.pa">
             <field name="name">PEDASI</field>
             <field name="code">5</field>
-            <field name="state_id" ref="base.state_pa_7"/>
+            <field name="state_id" ref="isfehka.state_pa_7"/>
         </record>
 
         <record id="distrito_7_6" model="res.distrito.pa">
             <field name="name">POCRI</field>
             <field name="code">6</field>
-            <field name="state_id" ref="base.state_pa_7"/>
+            <field name="state_id" ref="isfehka.state_pa_7"/>
         </record>
 
         <record id="distrito_7_7" model="res.distrito.pa">
             <field name="name">TONOSI</field>
             <field name="code">7</field>
-            <field name="state_id" ref="base.state_pa_7"/>
+            <field name="state_id" ref="isfehka.state_pa_7"/>
         </record>
 
         <record id="distrito_8_10" model="res.distrito.pa">
             <field name="name">SAN MIGUELITO</field>
             <field name="code">10</field>
-            <field name="state_id" ref="base.state_pa_8"/>
+            <field name="state_id" ref="isfehka.state_pa_8"/>
         </record>
 
         <record id="distrito_8_11" model="res.distrito.pa">
             <field name="name">TABOGA</field>
             <field name="code">11</field>
-            <field name="state_id" ref="base.state_pa_8"/>
+            <field name="state_id" ref="isfehka.state_pa_8"/>
         </record>
 
         <record id="distrito_8_2" model="res.distrito.pa">
             <field name="name">BALBOA</field>
             <field name="code">2</field>
-            <field name="state_id" ref="base.state_pa_8"/>
+            <field name="state_id" ref="isfehka.state_pa_8"/>
         </record>
 
         <record id="distrito_8_5" model="res.distrito.pa">
             <field name="name">CHEPO</field>
             <field name="code">5</field>
-            <field name="state_id" ref="base.state_pa_8"/>
+            <field name="state_id" ref="isfehka.state_pa_8"/>
         </record>
 
         <record id="distrito_8_6" model="res.distrito.pa">
             <field name="name">CHIMAN</field>
             <field name="code">6</field>
-            <field name="state_id" ref="base.state_pa_8"/>
+            <field name="state_id" ref="isfehka.state_pa_8"/>
         </record>
 
         <record id="distrito_8_8" model="res.distrito.pa">
             <field name="name">PANAMA</field>
             <field name="code">8</field>
-            <field name="state_id" ref="base.state_pa_8"/>
+            <field name="state_id" ref="isfehka.state_pa_8"/>
         </record>
 
         <record id="distrito_9_1" model="res.distrito.pa">
             <field name="name">ATALAYA</field>
             <field name="code">1</field>
-            <field name="state_id" ref="base.state_pa_9"/>
+            <field name="state_id" ref="isfehka.state_pa_9"/>
         </record>
 
         <record id="distrito_9_10" model="res.distrito.pa">
             <field name="name">SANTIAGO</field>
             <field name="code">10</field>
-            <field name="state_id" ref="base.state_pa_9"/>
+            <field name="state_id" ref="isfehka.state_pa_9"/>
         </record>
 
         <record id="distrito_9_11" model="res.distrito.pa">
             <field name="name">SONA</field>
             <field name="code">11</field>
-            <field name="state_id" ref="base.state_pa_9"/>
+            <field name="state_id" ref="isfehka.state_pa_9"/>
         </record>
 
         <record id="distrito_9_12" model="res.distrito.pa">
             <field name="name">MARIATO</field>
             <field name="code">12</field>
-            <field name="state_id" ref="base.state_pa_9"/>
+            <field name="state_id" ref="isfehka.state_pa_9"/>
         </record>
 
         <record id="distrito_9_2" model="res.distrito.pa">
             <field name="name">CALOBRE</field>
             <field name="code">2</field>
-            <field name="state_id" ref="base.state_pa_9"/>
+            <field name="state_id" ref="isfehka.state_pa_9"/>
         </record>
 
         <record id="distrito_9_3" model="res.distrito.pa">
             <field name="name">CAÑAZAS</field>
             <field name="code">3</field>
-            <field name="state_id" ref="base.state_pa_9"/>
+            <field name="state_id" ref="isfehka.state_pa_9"/>
         </record>
 
         <record id="distrito_9_4" model="res.distrito.pa">
             <field name="name">LA MEZA</field>
             <field name="code">4</field>
-            <field name="state_id" ref="base.state_pa_9"/>
+            <field name="state_id" ref="isfehka.state_pa_9"/>
         </record>
 
         <record id="distrito_9_5" model="res.distrito.pa">
             <field name="name">LAS PALMAS</field>
             <field name="code">5</field>
-            <field name="state_id" ref="base.state_pa_9"/>
+            <field name="state_id" ref="isfehka.state_pa_9"/>
         </record>
 
         <record id="distrito_9_6" model="res.distrito.pa">
             <field name="name">MONTIJO</field>
             <field name="code">6</field>
-            <field name="state_id" ref="base.state_pa_9"/>
+            <field name="state_id" ref="isfehka.state_pa_9"/>
         </record>
 
         <record id="distrito_9_7" model="res.distrito.pa">
             <field name="name">RIO DE JESUS</field>
             <field name="code">7</field>
-            <field name="state_id" ref="base.state_pa_9"/>
+            <field name="state_id" ref="isfehka.state_pa_9"/>
         </record>
 
         <record id="distrito_9_8" model="res.distrito.pa">
             <field name="name">SAN FRANCISCO</field>
             <field name="code">8</field>
-            <field name="state_id" ref="base.state_pa_9"/>
+            <field name="state_id" ref="isfehka.state_pa_9"/>
         </record>
 
         <record id="distrito_9_9" model="res.distrito.pa">
             <field name="name">SANTA FE</field>
             <field name="code">9</field>
-            <field name="state_id" ref="base.state_pa_9"/>
+            <field name="state_id" ref="isfehka.state_pa_9"/>
         </record>
 
         <!-- Corregimientos -->
