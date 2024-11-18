@@ -28,24 +28,23 @@ class ResPartner(models.Model):
     )
 
     # Location Fields
-    l10n_pa_provincia_id = fields.Many2one('res.provincia.pa', 'Provincia')
     l10n_pa_distrito_id = fields.Many2one('res.distrito.pa', 'Distrito',
-        domain="[('provincia_id', '=', l10n_pa_provincia_id)]")
+        domain="[('state_id', '=', state_id)]")
     l10n_pa_corregimiento_id = fields.Many2one('res.corregimiento.pa', 'Corregimiento',
         domain="[('distrito_id', '=', l10n_pa_distrito_id)]")
     codigo_ubicacion = fields.Char('Código de Ubicación', compute='_compute_codigo_ubicacion', store=True)
 
-    @api.depends('l10n_pa_provincia_id', 'l10n_pa_distrito_id', 'l10n_pa_corregimiento_id')
+    @api.depends('state_id', 'l10n_pa_distrito_id', 'l10n_pa_corregimiento_id')
     def _compute_codigo_ubicacion(self):
         """Compute location code in format provincia-distrito-corregimiento"""
         for partner in self:
-            if partner.l10n_pa_provincia_id and partner.l10n_pa_distrito_id and partner.l10n_pa_corregimiento_id:
-                partner.codigo_ubicacion = f"{partner.l10n_pa_provincia_id.code}-{partner.l10n_pa_distrito_id.code}-{partner.l10n_pa_corregimiento_id.code}"
+            if partner.state_id and partner.l10n_pa_distrito_id and partner.l10n_pa_corregimiento_id:
+                partner.codigo_ubicacion = f"{partner.state_id.code}-{partner.l10n_pa_distrito_id.code}-{partner.l10n_pa_corregimiento_id.code}"
             else:
                 partner.codigo_ubicacion = False
 
-    @api.onchange('l10n_pa_provincia_id')
-    def _onchange_provincia_id(self):
+    @api.onchange('state_id')
+    def _onchange_state_id(self):
         """Clear distrito and corregimiento when provincia changes"""
         self.l10n_pa_distrito_id = False
         self.l10n_pa_corregimiento_id = False
