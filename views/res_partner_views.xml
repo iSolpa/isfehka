@@ -6,9 +6,9 @@
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
             <field name="vat" position="after">
-                <field name="ruc" invisible="company_type != 'company'"/>
-                <field name="dv" invisible="company_type != 'company'"/>
-                <field name="tipo_contribuyente" invisible="company_type != 'company'"/>
+                <field name="ruc" invisible_if="company_type != 'company'"/>
+                <field name="dv" invisible_if="company_type != 'company'"/>
+                <field name="tipo_contribuyente" invisible_if="company_type != 'company'"/>
                 <field name="ruc_verified" invisible="1"/>
                 <field name="ruc_verification_date" invisible="1"/>
             </field>
@@ -24,7 +24,7 @@
                         type="object" 
                         class="oe_stat_button" 
                         icon="fa-check"
-                        attrs="{'invisible': ['|', ('company_type', '!=', 'company'), ('ruc_verified', '=', True)]}">
+                        invisible_if="company_type != 'company' or ruc_verified">
                     <div class="o_field_widget o_stat_info">
                         <span class="o_stat_text">Verificar RUC</span>
                     </div>
