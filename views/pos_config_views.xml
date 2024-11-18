@@ -5,7 +5,7 @@
         <field name="model">pos.config</field>
         <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//div[@id='payment_methods_section']" position="after">
+            <xpath expr="//form" position="inside">
                 <h2>HKA Configuration</h2>
                 <div class="row mt16 o_settings_container">
                     <div class="col-12 col-lg-6 o_setting_box">
