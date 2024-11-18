@@ -22,6 +22,7 @@
         'security/isfehka_security.xml',
         'security/ir.model.access.csv',
         'data/isfehka_data.xml',
+        'data/res_location_pa_data.xml',
         'views/res_config_settings_views.xml',
         'views/res_partner_views.xml',
         'views/account_move_views.xml',
