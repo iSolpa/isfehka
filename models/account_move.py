@@ -47,14 +47,7 @@ class AccountMove(models.Model):
         help='Razón por la cual se anula el documento'
     )
 
-    branch_id = fields.Many2one(
-        'res.branch',
-        string='Branch',
-        domain="[('company_id', '=', company_id)]",
-        tracking=True,
-        readonly=False,
-        copy=True
-    )
+    branch_id = '' #todo add field
 
     @api.onchange('journal_id')
     def _onchange_journal_branch(self):
