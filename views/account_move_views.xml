@@ -22,6 +22,8 @@
                        readonly="state != 'draft'"/>
                 <field name="naturaleza_operacion" 
                        readonly="state != 'draft'"/>
+                <field name="branch_id" 
+                       readonly="state == 'posted'"/>
             </xpath>
 
             <!-- Add HKA status page -->
@@ -75,4 +77,4 @@
             </group>
         </field>
     </record>
-</odoo> 
+</odoo>

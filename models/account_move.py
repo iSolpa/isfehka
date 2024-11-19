@@ -52,7 +52,8 @@ class AccountMove(models.Model):
         string='Branch',
         domain="[('company_id', '=', company_id)]",
         tracking=True,
-        states={'posted': [('readonly', True)]}
+        readonly=False,
+        copy=True
     )
 
     @api.onchange('journal_id')
@@ -130,6 +131,25 @@ class AccountMove(models.Model):
         except Exception as e:
             raise UserError(str(e))
 
+    def _get_hka_branch(self):
+        """Get the branch to use for HKA integration"""
+        self.ensure_one()
+        
+        # If invoice comes from POS
+        if hasattr(self, 'pos_order_ids') and self.pos_order_ids:
+            pos_config = self.pos_order_ids[0].config_id
+            if pos_config.branch_id:
+                return pos_config.branch_id
+
+        # If invoice has specific branch
+        if hasattr(self, 'branch_id') and self.branch_id:
+            return self.branch_id
+
+        # Fallback to company's main branch
+        if not self.company_id.main_branch_id:
+            raise UserError(_('Please configure a main branch for your company'))
+        return self.company_id.main_branch_id
+
     def _get_hka_pos_code(self):
         """Get the POS code to use for HKA integration"""
         self.ensure_one()
@@ -142,20 +162,18 @@ class AccountMove(models.Model):
             if pos_config.branch_id:
                 return pos_config.branch_id.default_pos_code
         
-        # If no POS order or no specific POS code, use branch default
-        if not self.branch_id:
-            raise UserError(_('Please configure a branch for this invoice'))
-        return self.branch_id.default_pos_code
+        # Get branch and use its default POS code
+        branch = self._get_hka_branch()
+        return branch.default_pos_code
 
     def _prepare_hka_data(self):
         """Prepare invoice data for HKA"""
         self.ensure_one()
-        if not self.branch_id:
-            raise UserError(_('Please configure a branch for this invoice'))
+        branch = self._get_hka_branch()
             
         return {
             'documento': {
-                'codigoSucursalEmisor': self.branch_id.code,
+                'codigoSucursalEmisor': branch.code,
                 'tipoSucursal': '1',
                 'datosTransaccion': {
                     'tipoEmision': '01',

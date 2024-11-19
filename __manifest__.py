@@ -14,7 +14,6 @@
     'license': 'OPL-1',
     'depends': [
         'base',
-        'account',
         'l10n_pa',
         'stock',
         'point_of_sale',
@@ -25,14 +24,14 @@
         'data/isfehka_data.xml',
         'data/res_country_state_data.xml',
         'data/res_location_pa_data.xml',
+        'views/res_company_views.xml',
         'views/res_config_settings_views.xml',
         'views/res_partner_views.xml',
         'views/account_move_views.xml',
-        'views/menu_views.xml',
         'views/pos_config_views.xml',
-        'views/res_branch_views.xml',
         'report/account_move_report.xml',
         'report/account_move_templates.xml',
+        'views/menu_views.xml',
     ],
     'external_dependencies': {
         'python': ['zeep'],
@@ -41,4 +40,4 @@
     'installable': True,
     'application': True,
     'auto_install': False,
-} 
+}

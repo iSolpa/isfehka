@@ -5,5 +5,3 @@ access_res_distrito_pa_user,res.distrito.pa.user,isfehka.model_res_distrito_pa,b
 access_res_corregimiento_pa_user,res.corregimiento.pa.user,isfehka.model_res_corregimiento_pa,base.group_user,1,0,0,0
 access_res_distrito_pa_manager,res.distrito.pa.manager,isfehka.model_res_distrito_pa,base.group_system,1,1,1,1
 access_res_corregimiento_pa_manager,res.corregimiento.pa.manager,isfehka.model_res_corregimiento_pa,base.group_system,1,1,1,1
-access_res_branch_user,res.branch.user,isfehka.model_res_branch,account.group_account_user,1,0,0,0
-access_res_branch_manager,res.branch.manager,isfehka.model_res_branch,account.group_account_manager,1,1,1,1
