@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data noupdate="1">
+    <data>
         <!-- Default WSDL URL for test environment -->
         <record id="default_wsdl_url" model="ir.config_parameter">
             <field name="key">isfehka.wsdl_url</field>
