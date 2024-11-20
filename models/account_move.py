@@ -179,7 +179,7 @@ class AccountMove(models.Model):
                     'envioContenedor': '1',
                     'procesoGeneracion': '1',
                     'tipoVenta': '1',
-                    'fechaEmision': self.invoice_date.strftime('%Y-%m-%dT%H:%M:%S'),
+                    'fechaEmision': fields.Datetime.now().strftime('%Y-%m-%dT%H:%M:%S-05:00'),
                     'cliente': self._prepare_hka_client_data(),
                 },
                 'listaItems': {
