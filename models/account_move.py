@@ -47,13 +47,6 @@ class AccountMove(models.Model):
         help='Razón por la cual se anula el documento'
     )
 
-    branch_id = '' #todo add field
-
-    @api.onchange('journal_id')
-    def _onchange_journal_branch(self):
-        if self.journal_id and not self.branch_id:
-            self.branch_id = self.journal_id.branch_id
-
     @api.constrains('partner_id')
     def _check_partner_ruc(self):
         for move in self:
@@ -236,7 +229,7 @@ class AccountMove(models.Model):
         """Prepare cancellation data for HKA"""
         return {
             'datosDocumento': {
-                'codigoSucursalEmisor': self.branch_id.code,
+                'codigoSucursalEmisor': self._get_hka_branch(),
                 'numeroDocumentoFiscal': self.name,
                 'puntoFacturacionFiscal': self._get_hka_pos_code(),
                 'tipoDocumento': self.tipo_documento,
