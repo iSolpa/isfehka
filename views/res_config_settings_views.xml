@@ -54,6 +54,10 @@
                                         <label class="col-lg-3 o_light_label" for="isfehka_wsdl_url"/>
                                         <field name="isfehka_wsdl_url"/>
                                     </div>
+                                    <div class="row mt16">
+                                        <label class="col-lg-3 o_light_label" for="isfehka_next_number"/>
+                                        <field name="isfehka_next_number" class="o_field_char"/>
+                                    </div>
                                 </div>
                             </div>
                         </div>

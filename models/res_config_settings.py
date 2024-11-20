@@ -1,4 +1,5 @@
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
@@ -20,6 +21,28 @@ class ResConfigSettings(models.TransientModel):
         string='Test Mode',
         config_parameter='isfehka.test_mode'
     )
+    
+    isfehka_next_number = fields.Char(
+        string='Próximo Número Fiscal HKA',
+        config_parameter='isfehka.next_number',
+        help='Próximo número de documento fiscal a utilizar (10 dígitos). '
+             'Debe ser mayor que cualquier número ya utilizado en el sistema HKA.'
+    )
+
+    @api.constrains('isfehka_next_number')
+    def _check_isfehka_next_number(self):
+        for record in self:
+            if record.isfehka_next_number:
+                if not record.isfehka_next_number.isdigit():
+                    raise ValidationError(_('El número fiscal debe contener solo dígitos.'))
+                if len(record.isfehka_next_number) != 10:
+                    raise ValidationError(_('El número fiscal debe tener exactamente 10 dígitos.'))
+                if int(record.isfehka_next_number) < 1:
+                    raise ValidationError(_('El número fiscal debe ser mayor que 0.'))
+                # Check if new number is less than current to prevent decreasing
+                current = self.env['ir.config_parameter'].sudo().get_param('isfehka.next_number')
+                if current and int(record.isfehka_next_number) <= int(current):
+                    raise ValidationError(_('El nuevo número fiscal debe ser mayor que el actual.'))
 
     @api.model
     def get_values(self):
@@ -30,6 +53,7 @@ class ResConfigSettings(models.TransientModel):
             isfehka_token_password=ICP.get_param('isfehka.token_password'),
             isfehka_wsdl_url=ICP.get_param('isfehka.wsdl_url'),
             isfehka_test_mode=ICP.get_param('isfehka.test_mode', 'False').lower() == 'true',
+            isfehka_next_number=ICP.get_param('isfehka.next_number', '0000000001'),
         )
         return res
 
@@ -40,3 +64,4 @@ class ResConfigSettings(models.TransientModel):
         ICP.set_param('isfehka.token_password', self.isfehka_token_password)
         ICP.set_param('isfehka.wsdl_url', self.isfehka_wsdl_url)
         ICP.set_param('isfehka.test_mode', str(self.isfehka_test_mode)) 
+        ICP.set_param('isfehka.next_number', self.isfehka_next_number)

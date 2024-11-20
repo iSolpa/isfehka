@@ -18,6 +18,13 @@ class AccountMove(models.Model):
         help='Código Único de Factura Electrónica'
     )
 
+    numero_documento_fiscal = fields.Char(
+        string='Número Documento Fiscal',
+        readonly=True,
+        size=10,
+        help='Número del documento fiscal asignado por HKA'
+    )
+
     hka_message = fields.Text(
         string='Mensaje HKA',
         readonly=True
@@ -152,7 +159,7 @@ class AccountMove(models.Model):
                 'datosTransaccion': {
                     'tipoEmision': '01',
                     'tipoDocumento': self.tipo_documento,
-                    'numeroDocumentoFiscal': self.name,
+                    'numeroDocumentoFiscal': self.numero_documento_fiscal,
                     'puntoFacturacionFiscal': self._get_hka_pos_code(),
                     'naturalezaOperacion': self.naturaleza_operacion,
                     'tipoOperacion': '1',
@@ -171,6 +178,32 @@ class AccountMove(models.Model):
                 'totalesSubTotales': self._prepare_hka_totals_data()
             }
         }
+
+    def _get_next_fiscal_number(self):
+        """Get and increment the next fiscal number using SQL for concurrency control."""
+        self.ensure_one()
+        if self.hka_status != 'draft':
+            return False
+
+        self.env.cr.execute("""
+            SELECT value FROM ir_config_parameter 
+            WHERE key = 'isfehka.next_number' 
+            FOR UPDATE NOWAIT
+        """)
+        current_number = self.env.cr.fetchone()
+        if not current_number:
+            raise UserError(_('No se ha configurado el próximo número fiscal en los ajustes de HKA.'))
+        
+        next_number = current_number[0]
+        # Update the next number
+        new_number = str(int(next_number) + 1).zfill(10)
+        self.env.cr.execute("""
+            UPDATE ir_config_parameter 
+            SET value = %s 
+            WHERE key = 'isfehka.next_number'
+        """, [new_number])
+        
+        return next_number
 
     def _prepare_hka_client_data(self):
         """Prepare client data for HKA"""
@@ -223,7 +256,7 @@ class AccountMove(models.Model):
         return {
             'datosDocumento': {
                 'codigoSucursalEmisor': self._get_hka_branch(),
-                'numeroDocumentoFiscal': self.name,
+                'numeroDocumentoFiscal': self.numero_documento_fiscal,
                 'puntoFacturacionFiscal': self._get_hka_pos_code(),
                 'tipoDocumento': self.tipo_documento,
                 'tipoEmision': '01',
@@ -241,3 +274,16 @@ class AccountMove(models.Model):
             elif tax.amount == 15:
                 return '03'
         return '00' 
+
+    def _prepare_hka_document(self):
+        """Prepare the document for HKA submission."""
+        self.ensure_one()
+        
+        # Only get a new number if we don't already have one
+        if not self.numero_documento_fiscal:
+            fiscal_number = self._get_next_fiscal_number()
+            if not fiscal_number:
+                raise UserError(_('No se pudo obtener el próximo número fiscal.'))
+            self.numero_documento_fiscal = fiscal_number
+        
+        # Continue with existing preparation logic

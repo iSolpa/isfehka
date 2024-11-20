@@ -30,6 +30,7 @@
                     <group>
                         <group>
                             <field name="hka_status"/>
+                            <field name="numero_documento_fiscal"/>
                             <field name="hka_cufe"/>
                             <field name="motivo_anulacion" 
                                    invisible="hka_status != 'cancelled'"
@@ -53,6 +54,9 @@
             <field name="state" position="after">
                 <field name="hka_status"/>
                 <field name="hka_cufe"/>
+            </field>
+            <field name="name" position="after">
+                <field name="numero_documento_fiscal" optional="show"/>
             </field>
         </field>
     </record>
