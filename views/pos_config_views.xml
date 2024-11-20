@@ -1,40 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- New Form View for POS Configurations -->
-    <record id="view_pos_config_hka_form" model="ir.ui.view">
-        <field name="name">pos.config.form.hka</field>
-        <field name="model">pos.config</field>
-        <field name="arch" type="xml">
-            <form>
-                <sheet>
-                    <group string="Point of Sale Configuration">
-                        <!-- Existing fields of POS config -->
-                        <field name="name"/>
-                        <field name="company_id" invisible="1"/>
-
-                        <!-- HKA Configuration Section -->
-                        <group string="HKA Integration Configuration" col="2">
-                        </group>
-                    </group>
-                </sheet>
-            </form>
-        </field>
-    </record>
-
     <record id="pos_config_view_form_inherit_isfehka" model="ir.ui.view">
         <field name="name">pos.config.form.inherit.isfehka</field>
         <field name="model">pos.config</field>
         <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//div[hasclass('o_settings_container')]" position="inside">
+            <xpath expr="//div[hasclass('o_settings_container')]/div[last()]" position="after">
                 <div class="col-12 col-lg-6 o_setting_box">
+                    <div class="o_setting_left_pane">
+                        <!-- Add a toggle switch if needed -->
+                    </div>
                     <div class="o_setting_right_pane">
-                        <span class="o_form_label">HKA Configuration</span>
+                        <label for="hka_pos_code" string="HKA POS Code"/>
                         <div class="text-muted">
-                            Configure HKA integration settings
+                            Set the Point of Sale code for HKA integration (3 digits)
                         </div>
-                        <div class="mt-2">
-                            <field name="hka_pos_code" placeholder="e.g. 001"/>
+                        <div class="content-group mt16">
+                            <field name="hka_pos_code" class="o_light_label" placeholder="e.g. 001"/>
                         </div>
                     </div>
                 </div>
