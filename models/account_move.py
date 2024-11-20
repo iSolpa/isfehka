@@ -267,10 +267,13 @@ class AccountMove(models.Model):
             'tiempoPago': '1',
             'nroItems': str(len(self.invoice_line_ids)),
             'totalTodosItems': str(self.amount_total),
-            'listaFormaPago': [{
-                'formaPagoFact': '02',  # Fixed as 'Efectivo' for now
-                'valorCuotaPagada': str(self.amount_total)
-            }]
+            'listaFormaPago': {
+                'formaPago': [{
+                    'formaPagoFact': '02',  # Fixed as 'Efectivo' for now
+                    'descFormaPago': '',
+                    'valorCuotaPagada': str(self.amount_total)
+                }]
+            }
         }
 
     def _prepare_cancel_data(self):
