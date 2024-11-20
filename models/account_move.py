@@ -74,6 +74,16 @@ class AccountMove(models.Model):
         if self.hka_status == 'sent':
             raise UserError(_('Esta factura ya ha sido enviada a HKA'))
 
+        # Validate required data before sending
+        self._validate_hka_data()
+
+        # Get the next fiscal number if needed
+        if not self.numero_documento_fiscal:
+            fiscal_number = self._get_next_fiscal_number()
+            if not fiscal_number:
+                raise UserError(_('No se pudo obtener el próximo número fiscal.'))
+            self.numero_documento_fiscal = fiscal_number
+
         try:
             hka_service = self.env['hka.service']
             invoice_data = self._prepare_hka_data()
@@ -208,16 +218,23 @@ class AccountMove(models.Model):
     def _prepare_hka_client_data(self):
         """Prepare client data for HKA"""
         partner = self.partner_id
+        # Construct location code using IDs with dashes
+        codigo_ubicacion = f"{partner.state_id.id or '0'}-{partner.district_id.id or '0'}-{partner.corregimiento_id.id or '0'}"
+        
         return {
             'tipoClienteFE': '02' if partner.tipo_contribuyente == '1' else '01',
             'tipoContribuyente': partner.tipo_contribuyente,
             'numeroRUC': partner.ruc,
             'digitoVerificadorRUC': partner.dv,
             'razonSocial': partner.name,
-            'direccion': partner.street or '',
-            'codigoUbicacion': partner.zip or '',
+            'direccion': partner.street,
+            'codigoUbicacion': codigo_ubicacion,
+            'provincia': partner.state_id.name,
+            'distrito': partner.district_id.name,
+            'corregimiento': partner.corregimiento_id.name,
             'correoElectronico1': partner.email or '',
             'telefono1': partner.phone or '',
+            'pais': 'PA',
         }
 
     def _prepare_hka_items_data(self):
@@ -242,6 +259,7 @@ class AccountMove(models.Model):
         return {
             'totalPrecioNeto': str(self.amount_untaxed),
             'totalITBMS': str(self.amount_tax),
+            'totalISC': '0.00',  # Required field, set to 0
             'totalMontoGravado': str(self.amount_tax),
             'totalFactura': str(self.amount_total),
             'totalValorRecibido': str(self.amount_total),
@@ -249,6 +267,10 @@ class AccountMove(models.Model):
             'tiempoPago': '1',
             'nroItems': str(len(self.invoice_line_ids)),
             'totalTodosItems': str(self.amount_total),
+            'listaFormaPago': [{
+                'formaPagoFact': '02',  # Fixed as 'Efectivo' for now
+                'valorCuotaPagada': str(self.amount_total)
+            }]
         }
 
     def _prepare_cancel_data(self):
@@ -287,3 +309,36 @@ class AccountMove(models.Model):
             self.numero_documento_fiscal = fiscal_number
         
         # Continue with existing preparation logic
+
+    def _validate_hka_data(self):
+        """Validate required data before sending to HKA"""
+        self.ensure_one()
+        partner = self.partner_id
+        errors = []
+
+        # Validate partner data
+        if not partner.tipo_contribuyente:
+            errors.append(_('El tipo de contribuyente del cliente es requerido.'))
+        if not partner.ruc:
+            errors.append(_('El RUC del cliente es requerido.'))
+        if not partner.dv:
+            errors.append(_('El dígito verificador del cliente es requerido.'))
+        if not partner.name:
+            errors.append(_('La razón social del cliente es requerida.'))
+        if not partner.street:
+            errors.append(_('La dirección del cliente es requerida.'))
+        
+        # Validate location data
+        if not partner.state_id:
+            errors.append(_('La provincia del cliente es requerida.'))
+        if not partner.district_id:
+            errors.append(_('El distrito del cliente es requerido.'))
+        if not partner.corregimiento_id:
+            errors.append(_('El corregimiento del cliente es requerido.'))
+
+        # Validate invoice data
+        if not self.invoice_line_ids:
+            errors.append(_('La factura debe tener al menos una línea.'))
+        
+        if errors:
+            raise ValidationError('\n'.join(errors))
