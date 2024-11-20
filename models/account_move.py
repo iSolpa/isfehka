@@ -125,23 +125,19 @@ class AccountMove(models.Model):
             raise UserError(str(e))
 
     def _get_hka_branch(self):
-        """Get the branch to use for HKA integration"""
+        """Get the branch code to use for HKA integration"""
         self.ensure_one()
         
         # If invoice comes from POS
         if hasattr(self, 'pos_order_ids') and self.pos_order_ids:
             pos_config = self.pos_order_ids[0].config_id
-            if pos_config.branch_id:
-                return pos_config.branch_id
+            if pos_config.branch_id and pos_config.branch_id.hka_branch_code:
+                return pos_config.branch_id.hka_branch_code
 
-        # If invoice has specific branch
-        if hasattr(self, 'branch_id') and self.branch_id:
-            return self.branch_id
-
-        # Fallback to company's main branch
-        if not self.company_id.main_branch_id:
-            raise UserError(_('Please configure a main branch for your company'))
-        return self.company_id.main_branch_id
+        # Fallback to company's branch code
+        if not self.company_id.hka_branch_code:
+            raise UserError(_('Please configure an HKA Branch Code in company settings'))
+        return self.company_id.hka_branch_code
 
     def _get_hka_pos_code(self):
         """Get the POS code to use for HKA integration"""
@@ -152,12 +148,11 @@ class AccountMove(models.Model):
             pos_config = self.pos_order_ids[0].config_id
             if pos_config.hka_pos_code:
                 return pos_config.hka_pos_code
-            if pos_config.branch_id:
-                return pos_config.branch_id.default_pos_code
-        
-        # Get branch and use its default POS code
-        branch = self._get_hka_branch()
-        return branch.default_pos_code
+
+        # Fallback to company's POS code
+        if not self.company_id.hka_pos_code:
+            raise UserError(_('Please configure an HKA POS Code in company settings'))
+        return self.company_id.hka_pos_code
 
     def _prepare_hka_data(self):
         """Prepare invoice data for HKA"""
@@ -166,7 +161,7 @@ class AccountMove(models.Model):
             
         return {
             'documento': {
-                'codigoSucursalEmisor': branch.code,
+                'codigoSucursalEmisor': branch,
                 'tipoSucursal': '1',
                 'datosTransaccion': {
                     'tipoEmision': '01',
