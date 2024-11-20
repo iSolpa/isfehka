@@ -219,7 +219,7 @@ class AccountMove(models.Model):
         """Prepare client data for HKA"""
         partner = self.partner_id
         # Construct location code using IDs with dashes
-        codigo_ubicacion = f"{partner.state_id.id or '0'}-{partner.district_id.id or '0'}-{partner.corregimiento_id.id or '0'}"
+        codigo_ubicacion = f"{partner.state_id.id or '0'}-{partner.l10n_pa_distrito_id.id or '0'}-{partner.l10n_pa_corregimiento_id.id or '0'}"
         
         return {
             'tipoClienteFE': '02' if partner.tipo_contribuyente == '1' else '01',
@@ -230,8 +230,8 @@ class AccountMove(models.Model):
             'direccion': partner.street,
             'codigoUbicacion': codigo_ubicacion,
             'provincia': partner.state_id.name,
-            'distrito': partner.district_id.name,
-            'corregimiento': partner.corregimiento_id.name,
+            'distrito': partner.l10n_pa_distrito_id.name,
+            'corregimiento': partner.l10n_pa_corregimiento_id.name,
             'correoElectronico1': partner.email or '',
             'telefono1': partner.phone or '',
             'pais': 'PA',
@@ -331,9 +331,9 @@ class AccountMove(models.Model):
         # Validate location data
         if not partner.state_id:
             errors.append(_('La provincia del cliente es requerida.'))
-        if not partner.district_id:
+        if not partner.l10n_pa_distrito_id:
             errors.append(_('El distrito del cliente es requerido.'))
-        if not partner.corregimiento_id:
+        if not partner.l10n_pa_corregimiento_id:
             errors.append(_('El corregimiento del cliente es requerido.'))
 
         # Validate invoice data
