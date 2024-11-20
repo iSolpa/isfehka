@@ -6,14 +6,12 @@
         <field name="inherit_id" ref="base.view_company_form"/>
         <field name="arch" type="xml">
             <xpath expr="//notebook" position="inside">
-                <notebook>
                     <page string="HKA Configuration" name="hka_config">
                         <group>
                             <field name="hka_branch_code"/>
                             <field name="hka_pos_code"/>
                         </group>
                     </page>
-                </notebook>
             </xpath>
         </field>
     </record>
