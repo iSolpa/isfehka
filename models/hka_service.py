@@ -289,7 +289,7 @@ class HKAService(models.Model):
         }
 
         return {
-            'codigoSucursalEmisor': company.codigo_sucursal or '0000',
+            'codigoSucursalEmisor': company.hka_branch_code,
             'datosTransaccion': {
                 'tipoEmision': '01',
                 'tipoDocumento': '01',

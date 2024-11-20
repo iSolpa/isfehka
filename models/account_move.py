@@ -121,13 +121,6 @@ class AccountMove(models.Model):
         """Get the branch code to use for HKA integration"""
         self.ensure_one()
         
-        # If invoice comes from POS
-        if hasattr(self, 'pos_order_ids') and self.pos_order_ids:
-            pos_config = self.pos_order_ids[0].config_id
-            if pos_config.branch_id and pos_config.branch_id.hka_branch_code:
-                return pos_config.branch_id.hka_branch_code
-
-        # Fallback to company's branch code
         if not self.company_id.hka_branch_code:
             raise UserError(_('Please configure an HKA Branch Code in company settings'))
         return self.company_id.hka_branch_code
