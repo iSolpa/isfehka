@@ -24,6 +24,7 @@
         'data/isfehka_data.xml',
         'data/res_country_state_data.xml',
         'data/res_location_pa_data.xml',
+        'wizard/account_move_cancel_reason_views.xml',
         'views/res_company_views.xml',
         'views/res_config_settings_views.xml',
         'views/res_partner_views.xml',
