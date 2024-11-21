@@ -141,6 +141,23 @@ class AccountMove(models.Model):
             })
             raise UserError(str(e))
 
+    def button_cancel_hka(self):
+        """Open the cancellation reason wizard"""
+        self.ensure_one()
+        if self.hka_status != 'sent':
+            raise UserError(_('Solo se pueden anular documentos enviados'))
+
+        return {
+            'name': _('Motivo de Anulación'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move.cancel.reason',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_move_id': self.id,
+            }
+        }
+
     def action_cancel_hka(self):
         """Cancel document in HKA"""
         self.ensure_one()

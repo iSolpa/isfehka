@@ -8,11 +8,12 @@
         <field name="arch" type="xml">
             <!-- Add HKA buttons in header -->
             <button name="action_post" position="before">
-                <button name="action_cancel_hka" 
+                <button name="button_cancel_hka" 
                         type="object" 
                         string="Anular en HKA" 
                         class="oe_highlight"
                         invisible="hka_status != 'sent'"
+                        data-hotkey="shift+a"
                         groups="isfehka.group_isfehka_user"/>
             </button>
 
@@ -33,8 +34,9 @@
                             <field name="numero_documento_fiscal"/>
                             <field name="hka_cufe"/>
                             <field name="motivo_anulacion" 
+                                   readonly="hka_status = 'cancelled'"
                                    invisible="hka_status != 'cancelled'"
-                                   required="hka_status == 'cancelled'"/>
+                                   force_save="1"/>
                         </group>
                         <group>
                             <field name="hka_message"/>
