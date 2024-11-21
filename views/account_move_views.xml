@@ -34,7 +34,7 @@
                             <field name="numero_documento_fiscal"/>
                             <field name="hka_cufe"/>
                             <field name="motivo_anulacion" 
-                                   readonly="hka_status = 'cancelled'"
+                                   readonly="1"
                                    invisible="hka_status != 'cancelled'"
                                    force_save="1"/>
                         </group>
