@@ -265,7 +265,6 @@ class AccountMove(models.Model):
         return {
             'totalPrecioNeto': '{:.2f}'.format(self.amount_untaxed),  # N|13,2 format
             'totalITBMS': '{:.2f}'.format(self.amount_tax),  # N|13,2 format
-            'totalISC': '0.00',  # Required field, set to 0
             'totalMontoGravado': '{:.2f}'.format(self.amount_tax),  # N|13,2 format
             'totalFactura': '{:.2f}'.format(self.amount_total),  # N|13,2 format
             'totalValorRecibido': '{:.2f}'.format(self.amount_total),  # N|13,2 format
