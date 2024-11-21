@@ -16,7 +16,7 @@ class PosOrder(models.Model):
 
         # Get the actual invoice record
         if not isinstance(moves, models.Model):
-            invoice = self.account_move_id
+            invoice = self.account_move
             if invoice:
                 try:
                     invoice._send_to_hka()
