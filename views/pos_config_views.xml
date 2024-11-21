@@ -11,12 +11,23 @@
                         <!-- Add a toggle switch if needed -->
                     </div>
                     <div class="o_setting_right_pane">
-                        <label for="hka_pos_code" string="HKA POS Code"/>
+                        <span class="o_form_label">HKA Configuration</span>
                         <div class="text-muted">
-                            Set the Point of Sale code for HKA integration (3 digits)
+                            Configure HKA integration settings for this point of sale
                         </div>
                         <div class="content-group mt16">
-                            <field name="hka_pos_code" class="o_light_label" placeholder="e.g. 001"/>
+                            <div class="row">
+                                <label string="POS Code" for="hka_pos_code" class="col-lg-3 o_light_label"/>
+                                <field name="hka_pos_code" placeholder="e.g. 001"/>
+                            </div>
+                            <div class="row mt8">
+                                <label string="Document Type" for="hka_tipo_documento" class="col-lg-3 o_light_label"/>
+                                <field name="hka_tipo_documento"/>
+                            </div>
+                            <div class="row mt8">
+                                <label string="Operation Nature" for="hka_naturaleza_operacion" class="col-lg-3 o_light_label"/>
+                                <field name="hka_naturaleza_operacion"/>
+                            </div>
                         </div>
                     </div>
                 </div>

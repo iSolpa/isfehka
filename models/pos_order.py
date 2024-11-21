@@ -19,6 +19,12 @@ class PosOrder(models.Model):
             invoice = self.account_move
             if invoice:
                 try:
+                    # Set HKA fields from POS config
+                    invoice.write({
+                        'tipo_documento': self.config_id.hka_tipo_documento,
+                        'naturaleza_operacion': self.config_id.hka_naturaleza_operacion,
+                    })
+                    # Send to HKA
                     invoice._send_to_hka()
                 except Exception as e:
                     _logger.warning(
