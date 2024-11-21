@@ -41,7 +41,8 @@ class ResConfigSettings(models.TransientModel):
                     raise ValidationError(_('El número fiscal debe ser mayor que 0.'))
                 # Check if new number is less than current to prevent decreasing
                 current = self.env['ir.config_parameter'].sudo().get_param('isfehka.next_number')
-                if current and int(record.isfehka_next_number) <= int(current):
+                # Only validate if the number is different from the current one
+                if current and record.isfehka_next_number != current and int(record.isfehka_next_number) <= int(current):
                     raise ValidationError(_('El nuevo número fiscal debe ser mayor que el actual.'))
 
     @api.model
