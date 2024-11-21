@@ -255,7 +255,6 @@ class AccountMove(models.Model):
                 'precioUnitarioDescuento': '',
                 'precioItem': precio_item,
                 'valorTotal': valor_total,
-                'codigoGTIN': line.product_id.barcode or '0',
                 'tasaITBMS': self._get_tax_rate(line),
                 'valorITBMS': valor_itbms,
             })
