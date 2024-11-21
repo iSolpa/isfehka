@@ -219,7 +219,7 @@ class AccountMove(models.Model):
         """Prepare client data for HKA"""
         partner = self.partner_id
         # Construct location code using IDs with dashes
-        codigo_ubicacion = f"{partner.state_id.id or '0'}-{partner.l10n_pa_distrito_id.id or '0'}-{partner.l10n_pa_corregimiento_id.id or '0'}"
+        codigo_ubicacion = f"{partner.state_id.code or '0'}-{partner.l10n_pa_distrito_id.code or '0'}-{partner.l10n_pa_corregimiento_id.code or '0'}"
         
         return {
             'tipoClienteFE': '02' if partner.tipo_contribuyente == '1' else '01',
