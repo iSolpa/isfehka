@@ -18,6 +18,30 @@ class AccountMove(models.Model):
         help='Código Único de Factura Electrónica'
     )
 
+    hka_pdf = fields.Binary(
+        string='PDF HKA',
+        readonly=True,
+        attachment=True,
+        help='PDF del documento fiscal'
+    )
+
+    hka_pdf_filename = fields.Char(
+        string='Nombre PDF HKA',
+        readonly=True
+    )
+
+    hka_xml = fields.Binary(
+        string='XML HKA',
+        readonly=True,
+        attachment=True,
+        help='XML del documento fiscal'
+    )
+
+    hka_xml_filename = fields.Char(
+        string='Nombre XML HKA',
+        readonly=True
+    )
+
     numero_documento_fiscal = fields.Char(
         string='Número Documento Fiscal',
         readonly=True,
@@ -90,10 +114,18 @@ class AccountMove(models.Model):
             result = hka_service.send_invoice(invoice_data)
 
             if result['success']:
+                # Store PDF and XML files with proper filenames
+                pdf_filename = f'FACT_{self.numero_documento_fiscal}.pdf'
+                xml_filename = f'FACT_{self.numero_documento_fiscal}.xml'
+                
                 self.write({
                     'hka_status': 'sent',
                     'hka_cufe': result['data'].get('cufe', ''),
-                    'hka_message': _('Documento enviado exitosamente')
+                    'hka_message': _('Documento enviado exitosamente'),
+                    'hka_pdf': base64.b64encode(result['pdf']) if result.get('pdf') else False,
+                    'hka_pdf_filename': pdf_filename,
+                    'hka_xml': base64.b64encode(result['xml']) if result.get('xml') else False,
+                    'hka_xml_filename': xml_filename,
                 })
             else:
                 self.write({
@@ -205,13 +237,14 @@ class AccountMove(models.Model):
             raise UserError(_('No se ha configurado el próximo número fiscal en los ajustes de HKA.'))
         
         next_number = current_number[0]
-        # Update the next number
+        # Update the next number immediately
         new_number = str(int(next_number) + 1).zfill(10)
         self.env.cr.execute("""
             UPDATE ir_config_parameter 
             SET value = %s 
             WHERE key = 'isfehka.next_number'
         """, [new_number])
+        self.env.cr.commit()  # Commit the transaction to ensure the number is updated
         
         return next_number
 
