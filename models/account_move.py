@@ -225,7 +225,7 @@ class AccountMove(models.Model):
             'tipoClienteFE': '02' if partner.tipo_contribuyente == '1' else '01',
             'tipoContribuyente': partner.tipo_contribuyente,
             'numeroRUC': partner.ruc,
-            'digitoVerificadorRUC': partner.dv,
+            'digitoVerificadorRUC': str(partner.dv).zfill(2),  # Ensure 2 digits with left padding
             'razonSocial': partner.name,
             'direccion': partner.street,
             'codigoUbicacion': codigo_ubicacion,
@@ -241,37 +241,44 @@ class AccountMove(models.Model):
         """Prepare invoice lines data for HKA"""
         items = []
         for line in self.invoice_line_ids:
+            # Format numeric values according to HKA specifications
+            cantidad = '{:.3f}'.format(line.quantity)  # N|13,3 format
+            precio_unitario = '{:.3f}'.format(line.price_unit)  # N|13,3 format
+            precio_item = '{:.2f}'.format(line.price_subtotal)  # N|13,2 format
+            valor_total = '{:.2f}'.format(line.price_total)  # N|13,2 format
+            valor_itbms = '{:.2f}'.format(line.price_total - line.price_subtotal)  # N|13,2 format
+
             items.append({
                 'descripcion': line.name,
-                'cantidad': str(line.quantity),
-                'precioUnitario': str(line.price_unit),
+                'cantidad': cantidad,
+                'precioUnitario': precio_unitario,
                 'precioUnitarioDescuento': '',
-                'precioItem': str(line.price_subtotal),
-                'valorTotal': str(line.price_total),
+                'precioItem': precio_item,
+                'valorTotal': valor_total,
                 'codigoGTIN': line.product_id.barcode or '0',
                 'tasaITBMS': self._get_tax_rate(line),
-                'valorITBMS': str(line.price_total - line.price_subtotal),
+                'valorITBMS': valor_itbms,
             })
         return items
 
     def _prepare_hka_totals_data(self):
         """Prepare totals data for HKA"""
         return {
-            'totalPrecioNeto': str(self.amount_untaxed),
-            'totalITBMS': str(self.amount_tax),
+            'totalPrecioNeto': '{:.2f}'.format(self.amount_untaxed),  # N|13,2 format
+            'totalITBMS': '{:.2f}'.format(self.amount_tax),  # N|13,2 format
             'totalISC': '0.00',  # Required field, set to 0
-            'totalMontoGravado': str(self.amount_tax),
-            'totalFactura': str(self.amount_total),
-            'totalValorRecibido': str(self.amount_total),
+            'totalMontoGravado': '{:.2f}'.format(self.amount_tax),  # N|13,2 format
+            'totalFactura': '{:.2f}'.format(self.amount_total),  # N|13,2 format
+            'totalValorRecibido': '{:.2f}'.format(self.amount_total),  # N|13,2 format
             'vuelto': '0.00',
             'tiempoPago': '1',
             'nroItems': str(len(self.invoice_line_ids)),
-            'totalTodosItems': str(self.amount_total),
+            'totalTodosItems': '{:.2f}'.format(self.amount_total),  # N|13,2 format
             'listaFormaPago': {
                 'formaPago': [{
                     'formaPagoFact': '02',  # Fixed as 'Efectivo' for now
                     'descFormaPago': '',
-                    'valorCuotaPagada': str(self.amount_total)
+                    'valorCuotaPagada': '{:.2f}'.format(self.amount_total)  # N|13,2 format
                 }]
             }
         }
