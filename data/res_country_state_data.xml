@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo>
+<odoo noupdate="1">
     <data>
         <!-- Create Panama states/provinces -->
         <record id="state_pa_1" model="res.country.state">
