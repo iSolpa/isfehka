@@ -272,7 +272,7 @@ class AccountMove(models.Model):
         codigo_ubicacion = f"{partner.state_id.code or '0'}-{partner.l10n_pa_distrito_id.code or '0'}-{partner.l10n_pa_corregimiento_id.code or '0'}"
         
         return {
-            'tipoClienteFE': '02' if partner.tipo_contribuyente == '1' else '01',
+            'tipoClienteFE': partner.tipo_cliente_fe,
             'tipoContribuyente': partner.tipo_contribuyente,
             'numeroRUC': partner.ruc,
             'digitoVerificadorRUC': str(partner.dv).zfill(2),  # Ensure 2 digits with left padding
@@ -377,6 +377,8 @@ class AccountMove(models.Model):
         # Validate partner data
         if not partner.tipo_contribuyente:
             errors.append(_('El tipo de contribuyente del cliente es requerido.'))
+        if not partner.tipo_cliente_fe:
+            errors.append(_('El tipo de cliente FE es requerido.'))
         if not partner.ruc:
             errors.append(_('El RUC del cliente es requerido.'))
         if not partner.dv:
