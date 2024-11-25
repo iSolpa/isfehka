@@ -9,6 +9,7 @@
                 <field name="ruc" placeholder="RUC"/>
                 <field name="dv" placeholder="DV"/>
                 <field name="tipo_contribuyente"/>
+                <field name="tipo_cliente_fe"/>
                 <button name="action_verify_ruc" 
                         type="object" 
                         string="Verificar RUC" 
@@ -34,6 +35,7 @@
             <field name="vat" position="after">
                 <field name="ruc"/>
                 <field name="dv"/>
+                <field name="tipo_cliente_fe"/>
                 <field name="ruc_verified"/>
             </field>
         </field>
@@ -46,9 +48,14 @@
         <field name="arch" type="xml">
             <field name="name" position="after">
                 <field name="ruc"/>
+                <field name="tipo_cliente_fe"/>
                 <filter string="RUC Verificado" name="ruc_verified" domain="[('ruc_verified', '=', True)]"/>
                 <filter string="RUC No Verificado" name="ruc_not_verified" domain="[('ruc_verified', '=', False)]"/>
+                <filter string="Contribuyentes" name="contribuyentes" domain="[('tipo_cliente_fe', '=', '01')]"/>
+                <filter string="Consumidores Finales" name="consumidores" domain="[('tipo_cliente_fe', '=', '02')]"/>
+                <filter string="Gobierno" name="gobierno" domain="[('tipo_cliente_fe', '=', '03')]"/>
+                <filter string="Extranjeros" name="extranjeros" domain="[('tipo_cliente_fe', '=', '04')]"/>
             </field>
         </field>
     </record>
-</odoo> 
+</odoo>

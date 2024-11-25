@@ -17,6 +17,14 @@ class ResPartner(models.Model):
         ('2', 'Jurídico')
     ], string='Tipo de Contribuyente', default='1')
     
+    tipo_cliente_fe = fields.Selection([
+        ('01', 'Contribuyente'),
+        ('02', 'Consumidor Final'),
+        ('03', 'Gobierno'),
+        ('04', 'Extranjero')
+    ], string='Tipo de Cliente FE', default='02',
+        help='Tipo de receptor de la Factura Electrónica')
+
     ruc_verified = fields.Boolean(
         string='RUC Verificado',
         default=False,
@@ -53,6 +61,22 @@ class ResPartner(models.Model):
     def _onchange_distrito_id(self):
         """Clear corregimiento when distrito changes"""
         self.l10n_pa_corregimiento_id = False
+
+    @api.onchange('country_id')
+    def _onchange_country_id(self):
+        """Set tipo_cliente_fe to Extranjero when country is not Panama"""
+        if self.country_id and self.country_id.code != 'PA':
+            self.tipo_cliente_fe = '04'  # Extranjero
+        elif self.tipo_cliente_fe == '04':
+            self.tipo_cliente_fe = '02'  # Default back to Consumidor Final
+
+    @api.onchange('tipo_contribuyente', 'ruc')
+    def _onchange_contribuyente_data(self):
+        """Update tipo_cliente_fe when tipo_contribuyente or RUC changes"""
+        if self.tipo_contribuyente == '2' or (self.tipo_contribuyente == '1' and self.ruc):
+            self.tipo_cliente_fe = '01'  # Contribuyente
+        elif self.tipo_cliente_fe == '01':
+            self.tipo_cliente_fe = '02'  # Default back to Consumidor Final
 
     @api.constrains('ruc')
     #def _check_ruc_format(self):
