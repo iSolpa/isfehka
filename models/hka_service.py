@@ -6,7 +6,7 @@ import base64
 
 _logger = logging.getLogger(__name__)
 
-class HKAService(models.Model):
+class HKAService(models.AbstractModel):
     _name = 'hka.service'
     _description = 'HKA Web Service Integration'
 
@@ -61,7 +61,7 @@ class HKAService(models.Model):
             raise UserError(_('Error verifying RUC: %s') % str(e))
 
     def send_invoice(self, invoice_data):
-        """Send invoice to HKA service"""
+        """Send invoice to HKA"""
         client = self.get_client()
         credentials = self.get_credentials()
         
@@ -83,13 +83,21 @@ class HKAService(models.Model):
             
             # If invoice was sent successfully, get XML and PDF
             if result.get('success'):
+                documento = invoice_data['documento']  # Get first level
+                datos_transaccion = documento['datosTransaccion']  # Get second level
+                
                 datos_documento = {
-                    'codigoSucursalEmisor': invoice_data.get('codigoSucursalEmisor'),
-                    'numeroDocumentoFiscal': invoice_data.get('datosTransaccion', {}).get('numeroDocumentoFiscal'),
-                    'puntoFacturacionFiscal': invoice_data.get('datosTransaccion', {}).get('puntoFacturacionFiscal'),
-                    'tipoDocumento': invoice_data.get('datosTransaccion', {}).get('tipoDocumento'),
-                    'tipoEmision': invoice_data.get('datosTransaccion', {}).get('tipoEmision'),
+                    'codigoSucursalEmisor': documento['codigoSucursalEmisor'],
+                    'tipoDocumento': datos_transaccion['tipoDocumento'],
+                    'numeroDocumentoFiscal': datos_transaccion['numeroDocumentoFiscal'],
+                    'puntoFacturacionFiscal': datos_transaccion['puntoFacturacionFiscal'],
+                    'tipoEmision': datos_transaccion['tipoEmision'],
                 }
+                
+                # Log the extracted datos_documento for debugging
+                if self.env.user.has_group('base.group_no_one'):
+                    _logger.info('ISFEHKA Extracted Document Data for PDF/XML: %s', datos_documento)
+                
                 result['xml'] = self.get_xml_document(datos_documento)
                 result['pdf'] = self.get_pdf_document(datos_documento)
             
@@ -129,42 +137,19 @@ class HKAService(models.Model):
             _logger.error('Document cancellation error: %s', str(e))
             raise UserError(_('Error cancelling document: %s') % str(e))
 
-    def get_xml_document(self, datos_documento):
-        """Get XML document from HKA service"""
-        client = self.get_client()
-        credentials = self.get_credentials()
-        
-        try:
-            # According to WSDL, DescargaXML expects tokenEmpresa, tokenPassword and datosDocumento
-            response = client.service.DescargaXML(
-                tokenEmpresa=credentials['tokenEmpresa'],
-                tokenPassword=credentials['tokenPassword'],
-                datosDocumento=datos_documento
-            )
-            
-            # Check response structure from WSDL
-            if response and hasattr(response, 'codigo') and response.codigo in ['200', '201']:
-                # WSDL shows documento is base64 encoded string
-                if hasattr(response, 'documento') and response.documento:
-                    try:
-                        return base64.b64decode(response.documento)
-                    except Exception as e:
-                        _logger.error('Error decoding XML document: %s', str(e))
-                _logger.warning('XML document not found in response')
-            else:
-                _logger.warning('Invalid response from HKA XML service: %s', 
-                              getattr(response, 'mensaje', 'Unknown error'))
-            return False
-        except Exception as e:
-            _logger.error('XML download error: %s', str(e))
-            return False
-
     def get_pdf_document(self, datos_documento):
         """Get PDF document from HKA service"""
         client = self.get_client()
         credentials = self.get_credentials()
         
         try:
+            # Log request data for debugging
+            if self.env.user.has_group('base.group_no_one'):
+                _logger.info('ISFEHKA PDF Request Data: %s', {
+                    'tokenEmpresa': credentials['tokenEmpresa'],
+                    'datosDocumento': datos_documento
+                })
+
             # According to WSDL, DescargaPDF expects tokenEmpresa, tokenPassword and datosDocumento
             response = client.service.DescargaPDF(
                 tokenEmpresa=credentials['tokenEmpresa'],
@@ -174,12 +159,18 @@ class HKAService(models.Model):
             
             # Check response structure from WSDL
             if response and hasattr(response, 'codigo') and response.codigo in ['200', '201']:
+                # Log success response
+                if self.env.user.has_group('base.group_no_one'):
+                    _logger.info('ISFEHKA PDF Response: %s', response)
+                
                 # WSDL shows documento is base64 encoded string
                 if hasattr(response, 'documento') and response.documento:
+                    # Convert from base64 string to bytes
                     try:
                         return base64.b64decode(response.documento)
                     except Exception as e:
-                        _logger.error('Error decoding PDF document: %s', str(e))
+                        _logger.error('Error decoding PDF base64: %s', str(e))
+                        return False
                 _logger.warning('PDF document not found in response')
             else:
                 _logger.warning('Invalid response from HKA PDF service: %s', 
@@ -187,6 +178,49 @@ class HKAService(models.Model):
             return False
         except Exception as e:
             _logger.error('PDF download error: %s', str(e))
+            return False
+
+    def get_xml_document(self, datos_documento):
+        """Get XML document from HKA service"""
+        client = self.get_client()
+        credentials = self.get_credentials()
+        
+        try:
+            # Log request data for debugging
+            if self.env.user.has_group('base.group_no_one'):
+                _logger.info('ISFEHKA XML Request Data: %s', {
+                    'tokenEmpresa': credentials['tokenEmpresa'],
+                    'datosDocumento': datos_documento
+                })
+
+            # According to WSDL, DescargaXML expects tokenEmpresa, tokenPassword and datosDocumento
+            response = client.service.DescargaXML(
+                tokenEmpresa=credentials['tokenEmpresa'],
+                tokenPassword=credentials['tokenPassword'],
+                datosDocumento=datos_documento
+            )
+            
+            # Check response structure from WSDL
+            if response and hasattr(response, 'codigo') and response.codigo in ['200', '201']:
+                # Log success response
+                if self.env.user.has_group('base.group_no_one'):
+                    _logger.info('ISFEHKA XML Response: %s', response)
+                
+                # WSDL shows documento is base64 encoded string
+                if hasattr(response, 'documento') and response.documento:
+                    # Convert from base64 string to bytes
+                    try:
+                        return base64.b64decode(response.documento)
+                    except Exception as e:
+                        _logger.error('Error decoding XML base64: %s', str(e))
+                        return False
+                _logger.warning('XML document not found in response')
+            else:
+                _logger.warning('Invalid response from HKA XML service: %s', 
+                              getattr(response, 'mensaje', 'Unknown error'))
+            return False
+        except Exception as e:
+            _logger.error('XML download error: %s', str(e))
             return False
 
     def _process_response(self, response):

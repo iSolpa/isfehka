@@ -1,5 +1,9 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
+import base64
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class AccountMove(models.Model):
     _inherit = 'account.move'
@@ -85,6 +89,12 @@ class AccountMove(models.Model):
                 if not move.partner_id.ruc_verified:
                     raise ValidationError(_('El RUC del cliente debe estar verificado antes de crear una factura electrónica.'))
 
+    @api.constrains('tipo_documento', 'reversed_entry_id')
+    def _check_credit_note_reference(self):
+        for move in self:
+            if move.tipo_documento == '04' and not move.reversed_entry_id:
+                raise ValidationError(_('Debe seleccionar una factura a la cual aplicar la nota de crédito.'))
+
     def action_post(self):
         """Override to send invoice to HKA when posting"""
         res = super().action_post()
@@ -114,19 +124,41 @@ class AccountMove(models.Model):
             result = hka_service.send_invoice(invoice_data)
 
             if result['success']:
-                # Store PDF and XML files with proper filenames
-                pdf_filename = f'FACT_{self.numero_documento_fiscal}.pdf'
-                xml_filename = f'FACT_{self.numero_documento_fiscal}.xml'
-                
+                # First save the basic response data
+                self.env.cr.commit()  # Commit the transaction to ensure we don't lose the CUFE
                 self.write({
                     'hka_status': 'sent',
                     'hka_cufe': result['data'].get('cufe', ''),
                     'hka_message': _('Documento enviado exitosamente'),
-                    'hka_pdf': base64.b64encode(result['pdf']) if result.get('pdf') else False,
-                    'hka_pdf_filename': pdf_filename,
-                    'hka_xml': base64.b64encode(result['xml']) if result.get('xml') else False,
-                    'hka_xml_filename': xml_filename,
                 })
+                self.env.cr.commit()  # Commit the transaction to ensure we don't lose the status
+
+                try:
+                    # Then handle PDF and XML files with proper filenames
+                    pdf_filename = f'FACT_{self.numero_documento_fiscal}.pdf'
+                    xml_filename = f'FACT_{self.numero_documento_fiscal}.xml'
+                    
+                    if result.get('pdf'):
+                        self.write({
+                            'hka_pdf': base64.b64encode(result['pdf']),
+                            'hka_pdf_filename': pdf_filename,
+                        })
+                        self.env.cr.commit()  # Commit PDF separately
+
+                    if result.get('xml'):
+                        self.write({
+                            'hka_xml': base64.b64encode(result['xml']),
+                            'hka_xml_filename': xml_filename,
+                        })
+                        self.env.cr.commit()  # Commit XML separately
+
+                except Exception as e:
+                    _logger.error('Error saving PDF/XML files: %s', str(e))
+                    # Don't raise the error since we already have the CUFE and status
+                    self.write({
+                        'hka_message': _('Documento enviado pero hubo un error al guardar PDF/XML: %s') % str(e)
+                    })
+
             else:
                 self.write({
                     'hka_status': 'error',
@@ -211,7 +243,7 @@ class AccountMove(models.Model):
         self.ensure_one()
         branch = self._get_hka_branch()
             
-        return {
+        data = {
             'documento': {
                 'codigoSucursalEmisor': branch,
                 'tipoSucursal': '1',
@@ -227,8 +259,9 @@ class AccountMove(models.Model):
                     'entregaCAFE': '1',
                     'envioContenedor': '1',
                     'procesoGeneracion': '1',
-                    'tipoVenta': '1',
+                    'tipoVenta': '',
                     'fechaEmision': fields.Datetime.now().strftime('%Y-%m-%dT%H:%M:%S-05:00'),
+                    'fechaSalida': fields.Datetime.now().strftime('%Y-%m-%dT%H:%M:%S-05:00'),
                     'cliente': self._prepare_hka_client_data(),
                 },
                 'listaItems': {
@@ -237,6 +270,23 @@ class AccountMove(models.Model):
                 'totalesSubTotales': self._prepare_hka_totals_data()
             }
         }
+
+        # Add referenced document data for credit notes
+        if self.tipo_documento == '04' and self.reversed_entry_id:
+            if not self.reversed_entry_id.hka_cufe:
+                raise UserError(_('La factura referenciada debe tener un CUFE válido'))
+
+            data['documento']['datosTransaccion']['informacionInteres'] = 'Factura de nota de credito referenciada'
+            data['documento']['datosTransaccion']['listaDocsFiscalReferenciados'] = {
+                'docFiscalReferenciado': [{
+                    'fechaEmisionDocFiscalReferenciado': self.reversed_entry_id.invoice_date.strftime('%Y-%m-%dT%H:%M:%S-05:00'),
+                    'cufeFEReferenciada': self.reversed_entry_id.hka_cufe,
+                    'nroFacturaPapel': '',
+                    'nroFacturaImpFiscal': '',
+                }]
+            }
+
+        return data
 
     def _get_next_fiscal_number(self):
         """Get and increment the next fiscal number using SQL for concurrency control."""
@@ -303,18 +353,35 @@ class AccountMove(models.Model):
         """Prepare invoice lines data for HKA"""
         items = []
         for line in self.invoice_line_ids:
+            # Skip lines with quantity 0
+            if not line.quantity:
+                continue
+
             # Format numeric values according to HKA specifications
             cantidad = '{:.3f}'.format(line.quantity)  # N|13,3 format
             precio_unitario = '{:.3f}'.format(line.price_unit)  # N|13,3 format
-            precio_item = '{:.2f}'.format(line.price_subtotal)  # N|13,2 format
-            valor_total = '{:.2f}'.format(line.price_total)  # N|13,2 format
-            valor_itbms = '{:.2f}'.format(line.price_total - line.price_subtotal)  # N|13,2 format
+            
+            # Calculate line discount
+            precio_unitario_descuento = '0.000'
+            if line.discount:
+                discount_amount = (line.price_unit * line.discount) / 100
+                precio_unitario_descuento = '{:.3f}'.format(discount_amount)
+            
+            # Calculate price after discount per unit
+            price_after_discount = line.price_unit - float(precio_unitario_descuento)
+            
+            # Calculate total price for the line (quantity × price after discount)
+            precio_item = '{:.2f}'.format(price_after_discount * line.quantity)
+            
+            # Calculate total value including taxes
+            valor_total = '{:.2f}'.format(line.price_total)  # Price including taxes
+            valor_itbms = '{:.2f}'.format(line.price_total - line.price_subtotal)  # Tax amount
 
             items.append({
                 'descripcion': line.name,
                 'cantidad': cantidad,
                 'precioUnitario': precio_unitario,
-                'precioUnitarioDescuento': '',
+                'precioUnitarioDescuento': precio_unitario_descuento,
                 'precioItem': precio_item,
                 'valorTotal': valor_total,
                 'tasaITBMS': self._get_tax_rate(line),
@@ -324,15 +391,37 @@ class AccountMove(models.Model):
 
     def _prepare_hka_totals_data(self):
         """Prepare totals data for HKA"""
-        return {
-            'totalPrecioNeto': '{:.2f}'.format(self.amount_untaxed),  # N|13,2 format
+        # Calculate line discounts
+        total_line_discounts = sum(
+            (line.price_unit * line.quantity * line.discount / 100)
+            for line in self.invoice_line_ids.filtered(lambda l: l.quantity > 0)
+        )
+        
+        # Get global discounts from global discount module if installed
+        total_global_discounts = 0.0
+        if hasattr(self, 'global_discount_ids'):
+            # Global discounts are applied after line discounts
+            base_for_global = self.amount_untaxed + total_line_discounts
+            total_global_discounts = sum(
+                (base_for_global * disc.discount / 100)
+                for disc in self.global_discount_ids
+            )
+        
+        total_discounts = total_line_discounts + total_global_discounts
+        
+        # Calculate total price before any discounts
+        total_precio_neto = self.amount_untaxed + total_discounts
+        
+        data = {
+            'totalPrecioNeto': '{:.2f}'.format(total_precio_neto),  # Price before any discounts
             'totalITBMS': '{:.2f}'.format(self.amount_tax),  # N|13,2 format
             'totalMontoGravado': '{:.2f}'.format(self.amount_tax),  # N|13,2 format
+            'totalDescuento': '{:.2f}'.format(total_discounts) if total_discounts > 0 else '',  # Only include if there are discounts
             'totalFactura': '{:.2f}'.format(self.amount_total),  # N|13,2 format
             'totalValorRecibido': '{:.2f}'.format(self.amount_total),  # N|13,2 format
             'vuelto': '0.00',
             'tiempoPago': '1',
-            'nroItems': str(len(self.invoice_line_ids)),
+            'nroItems': str(len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0))),
             'totalTodosItems': '{:.2f}'.format(self.amount_total),  # N|13,2 format
             'listaFormaPago': {
                 'formaPago': [{
@@ -342,6 +431,21 @@ class AccountMove(models.Model):
                 }]
             }
         }
+        
+        # Add global discounts list if any exist
+        if hasattr(self, 'global_discount_ids') and self.global_discount_ids:
+            base_for_global = self.amount_untaxed + total_line_discounts
+            data['listaDescBonificacion'] = {
+                'descuentoBonificacion': [
+                    {
+                        'descDescuento': disc.name,
+                        'montoDescuento': '{:.2f}'.format(base_for_global * disc.discount / 100)
+                    }
+                    for disc in self.global_discount_ids
+                ]
+            }
+        
+        return data
 
     def _prepare_cancel_data(self):
         """Prepare cancellation data for HKA"""
@@ -386,6 +490,17 @@ class AccountMove(models.Model):
         partner = self.partner_id
         errors = []
 
+        # Validate credit note specific data
+        if self.tipo_documento == '04':
+            if not self.reversed_entry_id:
+                errors.append(_('Debe seleccionar una factura a la cual aplicar la nota de crédito.'))
+            elif not self.reversed_entry_id.hka_cufe:
+                errors.append(_('La factura referenciada debe tener un CUFE válido.'))
+            elif self.reversed_entry_id.hka_status != 'sent':
+                errors.append(_('La factura referenciada debe estar en estado Enviado.'))
+            elif self.reversed_entry_id.tipo_documento not in ['01', '02', '03', '08']:
+                errors.append(_('La factura referenciada debe ser una factura (tipo 01, 02, 03, 08).'))
+
         # Special validation for Consumidor Final
         if partner.ruc == 'CF' and partner.name == 'CONSUMIDOR FINAL':
             if not partner.street:
@@ -424,3 +539,101 @@ class AccountMove(models.Model):
         
         if errors:
             raise ValidationError('\n'.join(errors))
+
+    def _needs_documents(self):
+        """Check if the invoice needs PDF or XML documents"""
+        self.ensure_one()
+        return (self.hka_status == 'sent' and 
+                (not self.hka_pdf or not self.hka_xml))
+
+    def action_get_documents(self):
+        """Retrieve PDF and XML documents from HKA"""
+        self.ensure_one()
+        if self.hka_status != 'sent':
+            raise UserError(_('Solo se pueden recuperar documentos de facturas enviadas'))
+
+        try:
+            hka_service = self.env['hka.service']
+            datos_documento = {
+                'codigoSucursalEmisor': self._get_hka_branch(),
+                'tipoDocumento': self.tipo_documento,
+                'numeroDocumentoFiscal': self.numero_documento_fiscal,
+                'puntoFacturacionFiscal': self._get_hka_pos_code(),
+                'tipoEmision': '01',
+            }
+
+            # Get PDF and XML
+            pdf_data = hka_service.get_pdf_document(datos_documento)
+            xml_data = hka_service.get_xml_document(datos_documento)
+
+            # Update the record with any documents received
+            update_vals = {}
+            if pdf_data:
+                update_vals.update({
+                    'hka_pdf': pdf_data,
+                    'hka_pdf_filename': f'FACT_{self.numero_documento_fiscal}.pdf'
+                })
+            if xml_data:
+                update_vals.update({
+                    'hka_xml': xml_data,
+                    'hka_xml_filename': f'FACT_{self.numero_documento_fiscal}.xml'
+                })
+
+            if update_vals:
+                self.write(update_vals)
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Éxito'),
+                        'message': _('Documentos recuperados exitosamente'),
+                        'sticky': False,
+                        'type': 'success',
+                    }
+                }
+            else:
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('Advertencia'),
+                        'message': _('No se pudieron recuperar los documentos'),
+                        'sticky': False,
+                        'type': 'warning',
+                    }
+                }
+
+        except Exception as e:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Error'),
+                    'message': str(e),
+                    'sticky': True,
+                    'type': 'danger',
+                }
+            }
+
+    @api.returns('self')
+    def _reverse_moves(self, default_values_list=None, cancel=False):
+        """Override to handle HKA fields when creating credit notes"""
+        if not default_values_list:
+            default_values_list = [{} for move in self]
+
+        for move, default_values in zip(self, default_values_list):
+            # Clear HKA fields for credit notes
+            default_values.update({
+                'hka_status': 'draft',
+                'hka_cufe': False,
+                'hka_pdf': False,
+                'hka_pdf_filename': False,
+                'hka_xml': False,
+                'hka_xml_filename': False,
+                'numero_documento_fiscal': False,
+                'hka_message': False,
+                'tipo_documento': '04',  # Set document type to credit note
+                'naturaleza_operacion': '04',  # Set nature to 'Devolución'
+            })
+
+        return super()._reverse_moves(default_values_list, cancel)

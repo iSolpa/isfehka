@@ -15,14 +15,28 @@
                         invisible="hka_status != 'sent'"
                         data-hotkey="shift+a"
                         groups="isfehka.group_isfehka_user"/>
+                <button name="action_get_documents" 
+                        type="object" 
+                        string="Recuperar Documentos" 
+                        class="oe_highlight"
+                        invisible="hka_status != 'sent' or (hka_pdf and hka_xml)"
+                        data-hotkey="shift+d"
+                        groups="isfehka.group_isfehka_user"/>
             </button>
 
             <!-- Add HKA fields in form -->
             <xpath expr="//group[@id='header_right_group']" position="inside">
                 <field name="tipo_documento" 
-                       readonly="state != 'draft'"/>
+                       invisible="state != 'draft'"/>
                 <field name="naturaleza_operacion" 
-                       readonly="state != 'draft'"/>
+                       invisible="state != 'draft'"/>
+                <field name="reversed_entry_id" 
+                       invisible="state != 'draft' or tipo_documento != '04'"
+                       domain="[('tipo_documento', 'in', ['01', '02', '03']), 
+                               ('hka_status', '=', 'sent'),
+                               ('hka_cufe', '!=', False)]"
+                       options="{'no_create': True, 'no_open': True}"
+                       string="Factura Referenciada"/>
             </xpath>
 
             <!-- Add HKA status page -->
