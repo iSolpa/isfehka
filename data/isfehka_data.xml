@@ -11,4 +11,20 @@
         <field name="key">isfehka.test_mode</field>
         <field name="value">True</field>
     </record>
+
+    <!-- Default Consumidor Final client -->
+    <record id="partner_consumidor_final" model="res.partner" forcecreate="false">
+        <field name="name">CONSUMIDOR FINAL</field>
+        <field name="street">Ciudad de Panama</field>
+        <field name="phone">235-2352</field>
+        <field name="country_id" ref="base.pa"/>
+        <field name="tipo_cliente_fe">02</field>
+        <field name="tipo_contribuyente">1</field>
+        <field name="ruc">CF</field>
+        <field name="dv">00</field>
+        <field name="ruc_verified" eval="True"/>
+        <field name="state_id" ref="base.state_pa_8"/>
+        <field name="l10n_pa_distrito_id" ref="isfehka.distrito_panama_8_1"/>
+        <field name="l10n_pa_corregimiento_id" ref="isfehka.corregimiento_panama_8_1_1"/>
+    </record>
 </odoo>
