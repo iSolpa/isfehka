@@ -79,17 +79,39 @@ class ResPartner(models.Model):
             self.tipo_cliente_fe = '02'  # Default back to Consumidor Final
 
     @api.constrains('ruc')
-    #def _check_ruc_format(self):
-        #for partner in self:
-            #if partner.ruc:
-                #if not partner.ruc.isdigit():
-                #    raise ValidationError(_('El RUC debe contener solo números'))
-                #if len(partner.ruc) < 8 or len(partner.ruc) > 10:
-                #    raise ValidationError(_('El RUC debe tener entre 8 y 10 dígitos'))
+    def _check_ruc_format(self):
+        """Check RUC format, allowing special case for Consumidor Final"""
+        for partner in self:
+            if partner.ruc:
+                if partner.ruc == 'CF':  # Special case for Consumidor Final
+                    continue
+                if not partner.ruc.isdigit():
+                    raise ValidationError(_('El RUC debe contener solo números'))
+                if len(partner.ruc) < 8 or len(partner.ruc) > 10:
+                    raise ValidationError(_('El RUC debe tener entre 8 y 10 dígitos'))
 
     def action_verify_ruc(self):
         """Verify RUC with HKA service"""
         self.ensure_one()
+        
+        # Skip verification for Consumidor Final
+        if self.ruc == 'CF' and self.name == 'CONSUMIDOR FINAL':
+            self.write({
+                'ruc_verified': True,
+                'ruc_verification_date': fields.Datetime.now(),
+                'dv': '00',
+                'tipo_cliente_fe': '02',  # Always Consumidor Final
+            })
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Éxito'),
+                    'message': _('Cliente Consumidor Final verificado'),
+                    'type': 'success',
+                }
+            }
+
         if not self.ruc or not self.tipo_contribuyente:
             raise UserError(_('Por favor ingrese el RUC y tipo de contribuyente'))
 

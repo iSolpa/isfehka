@@ -268,7 +268,19 @@ class AccountMove(models.Model):
     def _prepare_hka_client_data(self):
         """Prepare client data for HKA"""
         partner = self.partner_id
-        # Construct location code using IDs with dashes
+        
+        # Special case for Consumidor Final
+        if partner.ruc == 'CF' and partner.name == 'CONSUMIDOR FINAL':
+            return {
+                'tipoClienteFE': '02',
+                'razonSocial': 'CONSUMIDOR FINAL',
+                'direccion': partner.street or 'Ciudad de Panama',
+                'telefono1': partner.phone or '235-2352',
+                'correoElectronico1': partner.email or '',
+                'pais': 'PA',
+            }
+        
+        # Regular case
         codigo_ubicacion = f"{partner.state_id.code or '0'}-{partner.l10n_pa_distrito_id.code or '0'}-{partner.l10n_pa_corregimiento_id.code or '0'}"
         
         return {
@@ -374,7 +386,17 @@ class AccountMove(models.Model):
         partner = self.partner_id
         errors = []
 
-        # Validate partner data
+        # Special validation for Consumidor Final
+        if partner.ruc == 'CF' and partner.name == 'CONSUMIDOR FINAL':
+            if not partner.street:
+                errors.append(_('La dirección del cliente es requerida.'))
+            if not self.invoice_line_ids:
+                errors.append(_('La factura debe tener al menos una línea.'))
+            if errors:
+                raise ValidationError('\n'.join(errors))
+            return
+
+        # Regular validation
         if not partner.tipo_contribuyente:
             errors.append(_('El tipo de contribuyente del cliente es requerido.'))
         if not partner.tipo_cliente_fe:
