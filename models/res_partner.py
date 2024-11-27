@@ -95,12 +95,13 @@ class ResPartner(models.Model):
         self.ensure_one()
         
         # Skip verification for Consumidor Final
-        if self.ruc == 'CF' and self.name == 'CONSUMIDOR FINAL':
+        if self.ruc == 'CF':  
             self.write({
                 'ruc_verified': True,
                 'ruc_verification_date': fields.Datetime.now(),
                 'dv': '00',
-                'tipo_cliente_fe': '02',  # Always Consumidor Final
+                'tipo_cliente_fe': '02',  
+                'name': 'CONSUMIDOR FINAL',  
             })
             return {
                 'type': 'ir.actions.client',
