@@ -17,6 +17,7 @@
         'l10n_pa',
         'stock',
         'point_of_sale',
+        'custom_receipts_for_pos',
     ],
     'data': [
         'security/isfehka_security.xml',

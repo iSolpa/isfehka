@@ -33,6 +33,12 @@ patch(OrderReceipt.prototype, {
         this.pos = useState(useService("pos"));
         this.rpc = useService("rpc");
         
+        // Check if custom receipt system is available and properly configured
+        const hasCustomReceipts = this.pos?.config?.is_custom_receipt !== undefined;
+        if (!hasCustomReceipts) {
+            console.warn('[HKA Debug] Custom receipts system not properly configured');
+        }
+        
         // Initial fetch for the current order
         this.fetchInvoiceData();
     },
@@ -178,6 +184,17 @@ patch(OrderReceipt.prototype, {
     },
 
     get templateComponent() {
-        return CustomReceiptTemplate;
-    }
+        // First check if custom receipt system is available
+        if (this.pos?.config?.is_custom_receipt) {
+            return super.templateComponent;
+        }
+        // Fall back to our template if custom receipt system isn't ready
+        return class extends Component {
+            static template = 'OrderReceipt';
+            static props = {
+                data: { type: Object, optional: true },
+                receipt: { type: Object, optional: true }
+            };
+        };
+    },
 });
