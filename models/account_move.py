@@ -349,103 +349,163 @@ class AccountMove(models.Model):
             'pais': 'PA',
         }
 
+    def _is_global_discount_line(self, line):
+        """Check if a line represents a global discount from POS"""
+        if not line.product_id:
+            return False
+        # Check if product is marked as global discount in POS config
+        if hasattr(line.product_id, 'is_global_discount') and line.product_id.is_global_discount:
+            _logger.debug(f"Line {line.id} marked as global discount via product flag.")
+            return True
+        # Check if product is used in any POS global discount program
+        if hasattr(self, 'pos_order_ids') and self.pos_order_ids:
+            pos_config = self.pos_order_ids[0].config_id
+            if hasattr(pos_config, 'discount_product_id') and pos_config.discount_product_id == line.product_id:
+                _logger.debug(f"Line {line.id} marked as global discount via POS config.")
+                return True
+        return False
+
+
     def _prepare_hka_items_data(self):
         """Prepare invoice lines data for HKA"""
         items = []
         for line in self.invoice_line_ids:
-            # Skip lines with quantity 0
-            if not line.quantity:
+            # Skip lines with quantity 0 and global discount lines
+            if not line.quantity or self._is_global_discount_line(line):
                 continue
 
             # Format numeric values according to HKA specifications
             cantidad = '{:.3f}'.format(line.quantity)  # N|13,3 format
             precio_unitario = '{:.3f}'.format(line.price_unit)  # N|13,3 format
-            
+
             # Calculate line discount
             precio_unitario_descuento = '0.000'
             if line.discount:
                 discount_amount = (line.price_unit * line.discount) / 100
                 precio_unitario_descuento = '{:.3f}'.format(discount_amount)
-            
+
             # Calculate price after discount per unit
             price_after_discount = line.price_unit - float(precio_unitario_descuento)
-            
+
             # Calculate total price for the line (quantity × price after discount)
-            precio_item = '{:.2f}'.format(price_after_discount * line.quantity)
-            
+            precio_item = price_after_discount * line.quantity
+            precio_item_str = '{:.2f}'.format(precio_item)
+
+            # Calculate tax amount
+            valor_itbms = line.price_total - line.price_subtotal
+            valor_itbms_str = '{:.2f}'.format(valor_itbms)
+
             # Calculate total value including taxes
-            valor_total = '{:.2f}'.format(line.price_total)  # Price including taxes
-            valor_itbms = '{:.2f}'.format(line.price_total - line.price_subtotal)  # Tax amount
+            valor_total = precio_item + valor_itbms
+            valor_total_str = '{:.2f}'.format(valor_total)
 
             items.append({
-                'descripcion': line.name,
+                'descripcion': self._sanitize_hka_text(line.name),
                 'cantidad': cantidad,
                 'precioUnitario': precio_unitario,
                 'precioUnitarioDescuento': precio_unitario_descuento,
-                'precioItem': precio_item,
-                'valorTotal': valor_total,
+                'precioItem': precio_item_str,
+                'valorTotal': valor_total_str,
                 'tasaITBMS': self._get_tax_rate(line),
-                'valorITBMS': valor_itbms,
+                'valorITBMS': valor_itbms_str,
             })
         return items
 
+
+    def _sanitize_hka_text(self, text):
+        """Sanitize text for HKA API to avoid invalid characters"""
+        import re
+        if not text:
+            return 'Descuento'
+        # Remove any special characters except alphanumeric, spaces, periods, and hyphens
+        sanitized = re.sub(r'[^\w\s.-]', '', text)
+        # Remove square brackets and their contents
+        sanitized = re.sub(r'\[.*?\]', '', sanitized)
+        # Replace multiple spaces with a single space and strip
+        sanitized = ' '.join(sanitized.split())
+        # If empty after sanitization, return default
+        return sanitized.strip() or 'Descuento'
+
     def _prepare_hka_totals_data(self):
         """Prepare totals data for HKA"""
-        # Calculate line discounts
-        total_line_discounts = sum(
-            (line.price_unit * line.quantity * line.discount / 100)
-            for line in self.invoice_line_ids.filtered(lambda l: l.quantity > 0)
+        # Prepare items data
+        items_data = self._prepare_hka_items_data()
+
+        # Calculate totalTodosItems as the sum of 'valorTotal' from all items
+        total_todos_items = sum(
+            float(item['valorTotal']) for item in items_data
         )
-        
-        # Get global discounts from global discount module if installed
-        total_global_discounts = 0.0
-        if hasattr(self, 'global_discount_ids'):
-            # Global discounts are applied after line discounts
-            base_for_global = self.amount_untaxed + total_line_discounts
-            total_global_discounts = sum(
-                (base_for_global * disc.discount / 100)
-                for disc in self.global_discount_ids
-            )
-        
-        total_discounts = total_line_discounts + total_global_discounts
-        
-        # Calculate total price before any discounts
-        total_precio_neto = self.amount_untaxed + total_discounts
-        
+
+        # Calculate totalPrecioNeto as the sum of 'precioItem' from all items
+        total_precio_neto = sum(
+            float(item['precioItem']) for item in items_data
+        )
+
+        # Calculate totalITBMS as the sum of 'valorITBMS' from all items
+        total_itbms = sum(
+            float(item['valorITBMS']) for item in items_data
+        )
+
+        # Calculate global discounts
+        global_discount_lines = self.invoice_line_ids.filtered(
+            lambda l: self._is_global_discount_line(l)
+        )
+        total_global_discounts = abs(sum(
+            line.price_subtotal
+            for line in global_discount_lines
+        ))
+
+        # Only include global discounts in totalDescuento
+        if global_discount_lines:
+            total_discounts = total_global_discounts
+        else:
+            total_discounts = 0.0
+
+        # Calculate totalFactura as totalTodosItems + totalITBMS - totalDescuento
+        total_factura = total_todos_items + total_itbms - total_discounts
+
+        # Log the calculations for debugging
+        _logger.debug(f"totalPrecioNeto: {total_precio_neto}")
+        _logger.debug(f"totalITBMS: {total_itbms}")
+        _logger.debug(f"totalTodosItems (sum of valorTotal): {total_todos_items}")
+        _logger.debug(f"totalDescuento (global): {total_discounts}")
+        _logger.debug(f"totalFactura: {total_factura}")
+
         data = {
-            'totalPrecioNeto': '{:.2f}'.format(total_precio_neto),  # Price before any discounts
-            'totalITBMS': '{:.2f}'.format(self.amount_tax),  # N|13,2 format
-            'totalMontoGravado': '{:.2f}'.format(self.amount_tax),  # N|13,2 format
-            'totalDescuento': '{:.2f}'.format(total_discounts) if total_discounts > 0 else '',  # Only include if there are discounts
-            'totalFactura': '{:.2f}'.format(self.amount_total),  # N|13,2 format
-            'totalValorRecibido': '{:.2f}'.format(self.amount_total),  # N|13,2 format
-            'vuelto': '0.00',
-            'tiempoPago': '1',
-            'nroItems': str(len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0))),
-            'totalTodosItems': '{:.2f}'.format(self.amount_total),  # N|13,2 format
+            'totalPrecioNeto': '{:.2f}'.format(total_precio_neto),  # Sum of precioItem
+            'totalITBMS': '{:.2f}'.format(total_itbms),            # Sum of valorITBMS
+            'totalMontoGravado': '{:.2f}'.format(total_itbms),     # Assuming it mirrors totalITBMS
+            'totalDescuento': '{:.2f}'.format(total_discounts) if total_discounts > 0 else '',  # Global discounts only
+            'totalFactura': '{:.2f}'.format(total_factura),       # Total after discounts
+            'totalValorRecibido': '{:.2f}'.format(total_factura), # Typically matches totalFactura
+            'vuelto': '0.00',                                      # Assuming no change is given
+            'tiempoPago': '1',                                     # Fixed as per current implementation
+            'nroItems': str(len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0 and not self._is_global_discount_line(l)))),
+            'totalTodosItems': '{:.2f}'.format(total_todos_items),  # Corrected sum of valorTotal
             'listaFormaPago': {
                 'formaPago': [{
                     'formaPagoFact': '02',  # Fixed as 'Efectivo' for now
                     'descFormaPago': '',
-                    'valorCuotaPagada': '{:.2f}'.format(self.amount_total)  # N|13,2 format
+                    'valorCuotaPagada': '{:.2f}'.format(total_factura)  # Matches totalFactura
                 }]
             }
         }
-        
+
         # Add global discounts list if any exist
-        if hasattr(self, 'global_discount_ids') and self.global_discount_ids:
-            base_for_global = self.amount_untaxed + total_line_discounts
+        if global_discount_lines:
             data['listaDescBonificacion'] = {
                 'descuentoBonificacion': [
                     {
-                        'descDescuento': disc.name,
-                        'montoDescuento': '{:.2f}'.format(base_for_global * disc.discount / 100)
+                        'descDescuento': self._sanitize_hka_text(line.name),
+                        'montoDescuento': '{:.2f}'.format(abs(line.price_subtotal))
                     }
-                    for disc in self.global_discount_ids
+                    for line in global_discount_lines
                 ]
             }
-        
+
         return data
+
+
 
     def _prepare_cancel_data(self):
         """Prepare cancellation data for HKA"""
@@ -483,6 +543,13 @@ class AccountMove(models.Model):
             self.numero_documento_fiscal = fiscal_number
         
         # Continue with existing preparation logic
+
+    def get_hka_pdf_receipt(self):
+        """Get the HKA PDF receipt for POS printing"""
+        self.ensure_one()
+        if not self.hka_pdf:
+            return False
+        return self.hka_pdf
 
     def _validate_hka_data(self):
         """Validate required data before sending to HKA"""

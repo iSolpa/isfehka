@@ -10,6 +10,12 @@ class PosConfig(models.Model):
         help='Point of Sale code for HKA integration (3 digits)'
     )
 
+    use_hka_pdf_receipt = fields.Boolean(
+        string='Use HKA PDF Receipt',
+        default=False,
+        help='When enabled, the POS will use the PDF receipt from HKA instead of the default receipt format'
+    )
+
     hka_tipo_documento = fields.Selection([
         ('01', 'Factura de Operación Interna'),
         ('02', 'Factura de Importación'),

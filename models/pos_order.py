@@ -27,10 +27,30 @@ class PosOrder(models.Model):
                     # Send to HKA
                     invoice._send_to_hka()
                 except Exception as e:
-                    _logger.warning(
-                        'Invoice %s created but failed to send to HKA: %s',
+                    error_msg = str(e)
+                    _logger.error(
+                        'Failed to send invoice %s to HKA: %s',
                         invoice.name or 'Unknown',
-                        str(e)
+                        error_msg
                     )
+                    # Mark invoice as error and store the message
+                    invoice.write({
+                        'hka_status': 'error',
+                        'hka_message': error_msg
+                    })
+                    # Delete the invoice since it failed HKA validation
+                    invoice.button_draft()
+                    invoice.button_cancel()
+                    invoice.unlink()
+                    # Reset POS order state
+                    self.write({
+                        'state': 'draft',
+                        'account_move': False,
+                    })
+                    # Raise error to prevent completion
+                    raise models.ValidationError(_(
+                        'Error al enviar la factura a HKA. Por favor contacte al administrador.\n\n'
+                        'Detalles: %s'
+                    ) % error_msg)
         
         return moves
