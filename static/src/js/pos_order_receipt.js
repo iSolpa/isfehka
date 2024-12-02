@@ -22,13 +22,14 @@ class CustomReceiptTemplate extends Component {
 }
 
 patch(OrderReceipt.prototype, {
-    setup() {
+    async setup() {
         super.setup();
         this.state = useState({
-            template: true,
+            template: false,  // Start with template disabled
             hkaPdfData: null,
             hkaPdfImage: null,
-            error: null
+            error: null,
+            isLoading: false
         });
         this.pos = useState(useService("pos"));
         this.rpc = useService("rpc");
@@ -39,8 +40,9 @@ patch(OrderReceipt.prototype, {
             console.warn('[HKA Debug] Custom receipts system not properly configured');
         }
         
-        // Initial fetch for the current order
-        this.fetchInvoiceData();
+        // Wait for invoice data to be fetched before enabling template
+        await this.fetchInvoiceData();
+        this.state.template = true;  // Enable template only after data is ready
     },
     
     get orderData() {
@@ -53,6 +55,7 @@ patch(OrderReceipt.prototype, {
     
     async fetchInvoiceData() {
         console.log('[HKA Debug] Starting fetchInvoiceData');
+        this.state.isLoading = true;
         console.log('[HKA Debug] props:', this.props);
         console.log('[HKA Debug] Order data:', this.orderData);
         console.log('[HKA Debug] Current state:', this.state);
@@ -109,6 +112,8 @@ patch(OrderReceipt.prototype, {
             console.error('[HKA Debug] Error:', error);
             this.state.error = error.message || 'Failed to fetch invoice data';
             this.state.hkaPdfData = null;
+        } finally {
+            this.state.isLoading = false;
         }
         
         console.log('[HKA Debug] Final state after fetch:', this.state);
@@ -162,6 +167,17 @@ patch(OrderReceipt.prototype, {
     },
     
     get templateProps() {
+        // Wait for PDF processing to complete
+        if (this.state.isLoading) {
+            return {
+                data: this.props.data,
+                order: this.pos.orders,
+                receipt: { isLoading: true },
+                orderlines: [],
+                paymentlines: []
+            };
+        }
+
         const receipt = this.pos.get_order().export_for_printing();
         const receiptWithPdf = {
             ...receipt,
@@ -172,6 +188,7 @@ patch(OrderReceipt.prototype, {
         console.log('[HKA Debug] Template props:', {
             hkaPdfDataInState: !!this.state.hkaPdfData,
             hkaPdfDataInReceipt: !!receiptWithPdf.hkaPdfData,
+            isLoading: this.state.isLoading
         });
 
         return {
@@ -184,6 +201,12 @@ patch(OrderReceipt.prototype, {
     },
 
     get templateComponent() {
+        // Only return component if template is ready
+        if (!this.state.template) {
+            console.log('[HKA Debug] Template not ready, waiting for PDF data');
+            return null;
+        }
+        
         // First check if custom receipt system is available
         if (this.pos?.config?.is_custom_receipt) {
             return super.templateComponent;
