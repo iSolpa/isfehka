@@ -3,6 +3,7 @@ import { OrderReceipt } from "@point_of_sale/app/screens/receipt_screen/receipt/
 import { patch } from "@web/core/utils/patch";
 import { useState, Component } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
+import { xml } from "@web/core/utils/xml";
 
 // Configure PDF.js worker
 if (window.pdfjsLib) {
@@ -12,6 +13,18 @@ if (window.pdfjsLib) {
 // Define a custom receipt component
 class CustomReceiptTemplate extends Component {
     static template = 'point_of_sale.OrderReceipt';
+    static props = {
+        data: { type: Object, optional: true },
+        order: { type: Object, optional: true },
+        receipt: { type: Object, optional: true },
+        orderlines: { type: Array, optional: true },
+        paymentlines: { type: Array, optional: true }
+    };
+}
+
+// Loading template component
+class LoadingReceiptTemplate extends Component {
+    static template = 'isfehka.LoadingReceipt';
     static props = {
         data: { type: Object, optional: true },
         order: { type: Object, optional: true },
@@ -201,23 +214,17 @@ patch(OrderReceipt.prototype, {
     },
 
     get templateComponent() {
-        // Only return component if template is ready
+        // Show loading template while data is being fetched
         if (!this.state.template) {
-            console.log('[HKA Debug] Template not ready, waiting for PDF data');
-            return null;
+            console.log('[HKA Debug] Showing loading template while waiting for PDF data');
+            return LoadingReceiptTemplate;
         }
         
         // First check if custom receipt system is available
         if (this.pos?.config?.is_custom_receipt) {
             return super.templateComponent;
         }
-        // Fall back to our template if custom receipt system isn't ready
-        return class extends Component {
-            static template = 'OrderReceipt';
-            static props = {
-                data: { type: Object, optional: true },
-                receipt: { type: Object, optional: true }
-            };
-        };
+        
+        return CustomReceiptTemplate;
     },
 });
