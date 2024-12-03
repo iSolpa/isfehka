@@ -17,7 +17,6 @@
         'l10n_pa',
         'stock',
         'point_of_sale',
-        'custom_receipts_for_pos',
     ],
     'data': [
         'security/isfehka_security.xml',
@@ -35,15 +34,8 @@
         'report/account_move_templates.xml',
         'views/menu_views.xml',
     ],
-    'assets': {
-        'point_of_sale._assets_pos': [
-            ('prepend', 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'),
-            ('prepend', 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'),
-            'isfehka/static/src/js/pos_order_receipt.js',
-        ],
-    },
     'external_dependencies': {
-        'python': ['zeep', 'PyMuPDF'],
+        'python': ['zeep'],
     },
     'images': ['static/description/icon.png'],
     'installable': True,
