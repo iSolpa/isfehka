@@ -1,6 +1,6 @@
 {
     'name': 'Panama Electronic Invoicing - HKA Integration',
-    'version': '1.0.4',
+    'version': '1.0.5',
     'category': 'Accounting/Localizations',
     'summary': 'Electronic Invoicing Integration for Panama with HKA',
     'description': """
@@ -37,7 +37,7 @@
     'external_dependencies': {
         'python': ['zeep'],
     },
-    'images': ['static/description/icon.png'],
+    #'images': ['static/description/icon.png'],
     'installable': True,
     'application': True,
     'auto_install': False,
