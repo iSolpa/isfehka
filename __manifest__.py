@@ -40,11 +40,10 @@
             ('prepend', 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'),
             ('prepend', 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'),
             'isfehka/static/src/js/pos_order_receipt.js',
-            'isfehka/static/src/xml/pos_receipt_templates.xml',
         ],
     },
     'external_dependencies': {
-        'python': ['zeep'],
+        'python': ['zeep', 'PyMuPDF'],
     },
     'images': ['static/description/icon.png'],
     'installable': True,

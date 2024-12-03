@@ -74,7 +74,48 @@ class PosHkaController(http.Controller):
             }
             
         _logger.info("[HKA Debug] Found PDF data for invoice %s", invoice.name)
-        return {
-            'pdf_data': hka_pdf_data,
-            'success': True
-        }
+        
+        try:
+            # Convert PDF to image server-side using PyMuPDF
+            import base64
+            import fitz  # PyMuPDF
+            import io
+
+            # Decode base64 PDF data
+            pdf_bytes = base64.b64decode(hka_pdf_data)
+            
+            # Load PDF from memory
+            pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
+            
+            if pdf_document.page_count > 0:
+                # Get first page
+                page = pdf_document[0]
+                
+                # Convert to image with higher resolution
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                
+                # Convert to PNG image data
+                img_data = pix.tobytes("png")
+                
+                # Convert to base64
+                img_base64 = base64.b64encode(img_data).decode()
+                
+                # Clean up
+                pdf_document.close()
+                
+                return {
+                    'image_data': f'data:image/png;base64,{img_base64}',
+                    'success': True
+                }
+            else:
+                return {
+                    'error': 'PDF document has no pages',
+                    'success': False
+                }
+                
+        except Exception as e:
+            _logger.error("[HKA Debug] Error converting PDF to image: %s", str(e))
+            return {
+                'error': f'Error converting PDF to image: {str(e)}',
+                'success': False
+            }
