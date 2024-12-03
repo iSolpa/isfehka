@@ -1,20 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
-    <t t-name="isfehka.LoadingReceipt" owl="1">
-        <div class="pos-receipt">
-            <div class="pos-receipt-header">
-                <div class="pos-receipt-center-align">
-                    <div class="loading-indicator" style="text-align: center; padding: 20px;">
-                        <i class="fa fa-spinner fa-spin fa-2x" style="margin-bottom: 10px;"></i>
-                        <div>Preparing receipt...</div>
-                        <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
-                            <t t-if="props.order">
-                                Order: <t t-esc="props.order.name || ''"/>
-                            </t>
-                        </div>
-                    </div>
+    <t t-name="isfehka.OrderReceipt" t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension" owl="1">
+        <xpath expr="//div[hasclass('pos-receipt')]" position="inside">
+            <t t-if="props.receipt.hkaPdfImage">
+                <div class="pos-receipt-hka-pdf">
+                    <img t-att-src="props.receipt.hkaPdfImage" style="width: 100%; height: auto;"/>
                 </div>
-            </div>
-        </div>
+            </t>
+        </xpath>
     </t>
 </templates>

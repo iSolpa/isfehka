@@ -1,121 +1,65 @@
 from odoo import http
 from odoo.http import request
 import logging
+import base64
 
 _logger = logging.getLogger(__name__)
 
 class PosHkaController(http.Controller):
     @http.route('/pos/get_order_invoice', type='json', auth='user')
     def get_order_invoice(self, pos_reference):
-        _logger.info("[HKA Debug] Searching for POS order with reference: %s", pos_reference)
-        
-        # First, let's see what orders exist in the system
-        recent_orders = request.env['pos.order'].search([], limit=5, order='id desc')
-        _logger.info("[HKA Debug] Recent orders in system:")
-        for order in recent_orders:
-            _logger.info("Order: name=%s, pos_reference=%s, pos_session_id=%s", 
-                        order.name, order.pos_reference, order.session_id.name)
-        
-        # Now try to find our specific order
-        domain = [
-            '|', '|',
-            ('name', '=', pos_reference),
-            ('pos_reference', '=', pos_reference),
-            ('pos_reference', 'ilike', pos_reference)
-        ]
-        
-        pos_order = request.env['pos.order'].search(domain, limit=1)
-        _logger.info("[HKA Debug] Search domain: %s", domain)
-        _logger.info("[HKA Debug] Found POS order: %s", pos_order)
-        
-        if pos_order:
-            _logger.info("[HKA Debug] Order details: name=%s, pos_reference=%s", 
-                        pos_order.name, pos_order.pos_reference)
+        _logger.info('[HKA Debug] Getting invoice for POS reference: %s', pos_reference)
+        try:
+            order = request.env['pos.order'].search([('pos_reference', '=', pos_reference)], limit=1)
+            if not order:
+                _logger.warning('[HKA Debug] No order found for reference: %s', pos_reference)
+                return {'error': 'Order not found'}
             
-            # Get the invoice - try both new and old field names
-            invoice = None
-            if hasattr(pos_order, 'account_move'):
-                invoice = pos_order.account_move
-            elif hasattr(pos_order, 'invoice_id'):
-                invoice = pos_order.invoice_id
-            elif hasattr(pos_order, 'account_move_id'):
-                invoice = pos_order.account_move_id
-                
-            _logger.info("[HKA Debug] Found invoice: %s", invoice)
+            _logger.info('[HKA Debug] Found order: %s', order.name)
+            if not order.account_move:
+                _logger.warning('[HKA Debug] No invoice found for order: %s', order.name)
+                return {'error': 'No invoice found for order'}
             
-            if invoice:
-                return {
-                    'invoice_id': invoice.id,
-                    'success': True,
-                    'order_name': pos_order.name,
-                    'pos_reference': pos_order.pos_reference
-                }
-            else:
-                return {'error': 'No invoice found for this order'}
-        
-        return {'error': 'POS order not found', 'reference_tried': pos_reference}
+            _logger.info('[HKA Debug] Found invoice: %s', order.account_move.id)
+            return {
+                'success': True,
+                'invoice_id': order.account_move.id,
+                'order_name': order.name,
+                'pos_reference': order.pos_reference
+            }
+        except Exception as e:
+            _logger.error('[HKA Debug] Error in get_order_invoice: %s', str(e))
+            return {'error': str(e)}
 
     @http.route('/pos/get_hka_pdf', type='json', auth='user')
     def get_hka_pdf(self, invoice_id):
-        invoice = request.env['account.move'].browse(int(invoice_id))
-        if not invoice.exists():
-            return {'error': 'Invoice not found'}
-        
-        _logger.info("[HKA Debug] Getting PDF for invoice: %s", invoice.name)
-        
-        # Get HKA PDF data from the invoice
-        hka_pdf_data = invoice.hka_pdf if hasattr(invoice, 'hka_pdf') else None
-        
-        if not hka_pdf_data:
-            _logger.warning("[HKA Debug] No PDF data found for invoice %s", invoice.name)
-            return {
-                'error': 'No PDF data found',
-                'success': False
-            }
-            
-        _logger.info("[HKA Debug] Found PDF data for invoice %s", invoice.name)
-        
+        _logger.info('[HKA Debug] Getting HKA PDF for invoice: %s', invoice_id)
         try:
-            # Convert PDF to image server-side using PyMuPDF
-            import base64
-            import fitz  # PyMuPDF
-            import io
+            invoice = request.env['account.move'].browse(int(invoice_id))
+            if not invoice.exists():
+                _logger.warning('[HKA Debug] Invoice not found: %s', invoice_id)
+                return {'error': 'Invoice not found'}
 
-            # Decode base64 PDF data
-            pdf_bytes = base64.b64decode(hka_pdf_data)
+            _logger.info('[HKA Debug] Found invoice: %s', invoice.name)
+            if not invoice.hka_pdf:
+                _logger.warning('[HKA Debug] No HKA PDF found for invoice: %s', invoice.name)
+                return {'error': 'No HKA PDF found for invoice'}
+
+            _logger.info('[HKA Debug] Converting HKA PDF to image')
+            import fitz  # PyMuPDF
+            pdf_data = base64.b64decode(invoice.hka_pdf)
+            doc = fitz.open(stream=pdf_data, filetype="pdf")
+            page = doc[0]
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+            img_data = pix.tobytes("png")
             
-            # Load PDF from memory
-            pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
+            image_base64 = base64.b64encode(img_data).decode('utf-8')
+            _logger.info('[HKA Debug] Successfully converted PDF to image. Data length: %d', len(image_base64))
             
-            if pdf_document.page_count > 0:
-                # Get first page
-                page = pdf_document[0]
-                
-                # Convert to image with higher resolution
-                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-                
-                # Convert to PNG image data
-                img_data = pix.tobytes("png")
-                
-                # Convert to base64
-                img_base64 = base64.b64encode(img_data).decode()
-                
-                # Clean up
-                pdf_document.close()
-                
-                return {
-                    'image_data': f'data:image/png;base64,{img_base64}',
-                    'success': True
-                }
-            else:
-                return {
-                    'error': 'PDF document has no pages',
-                    'success': False
-                }
-                
-        except Exception as e:
-            _logger.error("[HKA Debug] Error converting PDF to image: %s", str(e))
             return {
-                'error': f'Error converting PDF to image: {str(e)}',
-                'success': False
+                'success': True,
+                'image_data': f'data:image/png;base64,{image_base64}'
             }
+        except Exception as e:
+            _logger.error('[HKA Debug] Error in get_hka_pdf: %s', str(e))
+            return {'error': str(e)}
