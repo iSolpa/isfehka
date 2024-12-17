@@ -369,6 +369,8 @@ class AccountMove(models.Model):
     def _prepare_hka_items_data(self):
         """Prepare invoice lines data for HKA"""
         items = []
+        
+        # First process regular lines
         for line in self.invoice_line_ids:
             # Skip lines with quantity 0 and global discount lines
             if not line.quantity or self._is_global_discount_line(line):
@@ -409,8 +411,23 @@ class AccountMove(models.Model):
                 'tasaITBMS': self._get_tax_rate(line),
                 'valorITBMS': valor_itbms_str,
             })
-        return items
 
+        # Handle rounding
+        rounding_amount = self.amount_total - sum(l.price_total for l in self.invoice_line_ids)
+        if abs(rounding_amount) >= 0.01:  # Only process significant rounding
+            if rounding_amount > 0:  # Rounding up - add as a line item
+                items.append({
+                    'descripcion': 'Ajuste por Redondeo',
+                    'cantidad': '1.000',
+                    'precioUnitario': '{:.3f}'.format(abs(rounding_amount)),
+                    'precioUnitarioDescuento': '0.000',
+                    'precioItem': '{:.2f}'.format(abs(rounding_amount)),
+                    'valorTotal': '{:.2f}'.format(abs(rounding_amount)),
+                    'tasaITBMS': '00',  # No tax
+                    'valorITBMS': '0.00',
+                })
+        
+        return items
 
     def _sanitize_hka_text(self, text):
         """Sanitize text for HKA API to avoid invalid characters"""
@@ -428,6 +445,10 @@ class AccountMove(models.Model):
 
     def _prepare_hka_totals_data(self):
         """Prepare totals data for HKA"""
+        # Calculate rounding amount
+        rounding_amount = self.amount_total - sum(l.price_total for l in self.invoice_line_ids)
+        has_rounding_line = rounding_amount > 0.01  # Track if we'll add a rounding line item
+        
         # Prepare items data
         items_data = self._prepare_hka_items_data()
 
@@ -455,57 +476,71 @@ class AccountMove(models.Model):
             for line in global_discount_lines
         ))
 
-        # Only include global discounts in totalDescuento
-        if global_discount_lines:
-            total_discounts = total_global_discounts
-        else:
-            total_discounts = 0.0
+        # Handle rounding down as a discount
+        total_discounts = total_global_discounts
+        if rounding_amount < -0.01:  # Only add negative rounding (rounding down)
+            total_discounts += abs(rounding_amount)
 
-        # Calculate totalFactura as totalTodosItems + totalITBMS - totalDescuento
-        total_factura = total_todos_items + total_itbms - total_discounts
+        # Calculate totalFactura
+        total_factura = total_todos_items - total_discounts
+
+        # Calculate number of items (including rounding line if present)
+        regular_items = len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0 and not self._is_global_discount_line(l)))
+        total_items = regular_items + (1 if has_rounding_line else 0)
 
         # Log the calculations for debugging
         _logger.debug(f"totalPrecioNeto: {total_precio_neto}")
         _logger.debug(f"totalITBMS: {total_itbms}")
         _logger.debug(f"totalTodosItems (sum of valorTotal): {total_todos_items}")
-        _logger.debug(f"totalDescuento (global): {total_discounts}")
+        _logger.debug(f"totalDescuento (global + rounding down): {total_discounts}")
+        _logger.debug(f"rounding_amount: {rounding_amount}")
         _logger.debug(f"totalFactura: {total_factura}")
+        _logger.debug(f"nroItems: {total_items}")
 
         data = {
-            'totalPrecioNeto': '{:.2f}'.format(total_precio_neto),  # Sum of precioItem
-            'totalITBMS': '{:.2f}'.format(total_itbms),            # Sum of valorITBMS
-            'totalMontoGravado': '{:.2f}'.format(total_itbms),     # Assuming it mirrors totalITBMS
-            'totalDescuento': '{:.2f}'.format(total_discounts) if total_discounts > 0 else '',  # Global discounts only
-            'totalFactura': '{:.2f}'.format(total_factura),       # Total after discounts
-            'totalValorRecibido': '{:.2f}'.format(total_factura), # Typically matches totalFactura
-            'vuelto': '0.00',                                      # Assuming no change is given
-            'tiempoPago': '1',                                     # Fixed as per current implementation
-            'nroItems': str(len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0 and not self._is_global_discount_line(l)))),
-            'totalTodosItems': '{:.2f}'.format(total_todos_items),  # Corrected sum of valorTotal
+            'totalPrecioNeto': '{:.2f}'.format(total_precio_neto),
+            'totalITBMS': '{:.2f}'.format(total_itbms),
+            'totalMontoGravado': '{:.2f}'.format(total_itbms),
+            'totalDescuento': '{:.2f}'.format(total_discounts) if total_discounts > 0 else '',
+            'totalFactura': '{:.2f}'.format(total_factura),
+            'totalValorRecibido': '{:.2f}'.format(total_factura),
+            'vuelto': '0.00',
+            'tiempoPago': '1',
+            'nroItems': str(total_items),
+            'totalTodosItems': '{:.2f}'.format(total_todos_items),
             'listaFormaPago': {
                 'formaPago': [{
-                    'formaPagoFact': '02',  # Fixed as 'Efectivo' for now
+                    'formaPagoFact': '02',
                     'descFormaPago': '',
-                    'valorCuotaPagada': '{:.2f}'.format(total_factura)  # Matches totalFactura
+                    'valorCuotaPagada': '{:.2f}'.format(total_factura)
                 }]
             }
         }
 
-        # Add global discounts list if any exist
+        # Add global discounts and rounding down to listaDescBonificacion if any exist
+        discount_bonifications = []
+        
+        # Add global discount lines if any
         if global_discount_lines:
+            for line in global_discount_lines:
+                discount_bonifications.append({
+                    'descDescuento': self._sanitize_hka_text(line.name),
+                    'montoDescuento': '{:.2f}'.format(abs(line.price_subtotal))
+                })
+        
+        # Add rounding down as a discount if significant
+        if rounding_amount < -0.01:
+            discount_bonifications.append({
+                'descDescuento': 'Ajuste por Redondeo',
+                'montoDescuento': '{:.2f}'.format(abs(rounding_amount))
+            })
+        
+        if discount_bonifications:
             data['listaDescBonificacion'] = {
-                'descuentoBonificacion': [
-                    {
-                        'descDescuento': self._sanitize_hka_text(line.name),
-                        'montoDescuento': '{:.2f}'.format(abs(line.price_subtotal))
-                    }
-                    for line in global_discount_lines
-                ]
+                'descuentoBonificacion': discount_bonifications
             }
 
         return data
-
-
 
     def _prepare_cancel_data(self):
         """Prepare cancellation data for HKA"""
