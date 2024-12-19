@@ -22,7 +22,7 @@ class ResPartner(models.Model):
         ('02', 'Consumidor Final'),
         ('03', 'Gobierno'),
         ('04', 'Extranjero')
-    ], string='Tipo de Cliente FE', default='02',
+    ], string='Tipo de Cliente FE',
         help='Tipo de receptor de la Factura Electrónica')
 
     ruc_verified = fields.Boolean(
@@ -85,10 +85,14 @@ class ResPartner(models.Model):
             if partner.ruc:
                 if partner.ruc == 'CF':  # Special case for Consumidor Final
                     continue
-                if not partner.ruc.isdigit():
-                    raise ValidationError(_('El RUC debe contener solo números'))
-                if len(partner.ruc) < 8 or len(partner.ruc) > 10:
-                    raise ValidationError(_('El RUC debe tener entre 8 y 10 dígitos'))
+                # Remove hyphens and spaces for validation
+                ruc_clean = partner.ruc.replace('-', '').replace(' ', '')
+                # Extract the base RUC number (before any hyphens)
+                base_ruc = ruc_clean.split('-')[0] if '-' in partner.ruc else ruc_clean
+                if not base_ruc.isdigit():
+                    raise ValidationError(_('El RUC debe contener solo números, guiones y espacios'))
+                if len(base_ruc) < 8 or len(base_ruc) > 10:
+                    raise ValidationError(_('El número base del RUC debe tener entre 8 y 10 dígitos'))
 
     def action_verify_ruc(self):
         """Verify RUC with HKA service"""
