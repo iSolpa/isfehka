@@ -4,6 +4,12 @@ from odoo.exceptions import ValidationError, UserError
 class ResPartner(models.Model):
     _inherit = 'res.partner'
 
+    country_id = fields.Many2one(
+        'res.country',
+        string='Country',
+        default=lambda self: self.env.ref('base.pa', raise_if_not_found=False) or 172
+    )
+
     ruc = fields.Char(
         string='RUC',
         help='Registro Único de Contribuyente'
@@ -28,11 +34,11 @@ class ResPartner(models.Model):
     ruc_verified = fields.Boolean(
         string='RUC Verificado',
         default=False,
-        readonly=True
+        readonly=False
     )
     ruc_verification_date = fields.Datetime(
         string='Fecha de Verificación',
-        readonly=True
+        readonly=False
     )
 
     # Location Fields
@@ -91,8 +97,8 @@ class ResPartner(models.Model):
                 base_ruc = ruc_clean.split('-')[0] if '-' in partner.ruc else ruc_clean
                 if not base_ruc.isdigit():
                     raise ValidationError(_('El RUC debe contener solo números, guiones y espacios'))
-                if len(base_ruc) < 8 or len(base_ruc) > 10:
-                    raise ValidationError(_('El número base del RUC debe tener entre 8 y 10 dígitos'))
+                if len(base_ruc) < 1 or len(base_ruc) > 20:
+                    raise ValidationError(_('El número base del RUC debe tener entre 1 y 20 dígitos'))
 
     def action_verify_ruc(self):
         """Verify RUC with HKA service"""
@@ -151,6 +157,9 @@ class ResPartner(models.Model):
     def write(self, vals):
         if vals.get('ruc'):
             vals['ruc'] = vals['ruc'].strip()
-            vals['ruc_verified'] = False
-            vals['ruc_verification_date'] = False
+            # Only reset verification fields if they're not being explicitly set
+            if 'ruc_verified' not in vals:
+                vals['ruc_verified'] = False
+            if 'ruc_verification_date' not in vals:
+                vals['ruc_verification_date'] = False
         return super().write(vals) 

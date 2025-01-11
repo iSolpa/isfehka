@@ -33,6 +33,7 @@ class HKAService(models.AbstractModel):
             'tokenPassword': ICP.get_param('isfehka.token_password'),
         }
 
+    @api.model
     def verify_ruc(self, ruc, tipo_ruc):
         """Verify RUC number with HKA service"""
         client = self.get_client()

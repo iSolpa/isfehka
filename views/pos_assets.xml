@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<odoo>
-    <template id="pos_assets" inherit_id="point_of_sale._assets_pos">
-        <xpath expr="." position="inside">
-            <script type="text/javascript" src="/isfehka/static/src/js/pos_receipt.js"/>
-            <script type="text/javascript" src="/isfehka/static/src/xml/pos_receipt.xml"/>
-        </xpath>
-    </template>
-</odoo>

@@ -160,17 +160,21 @@ class AccountMove(models.Model):
                     })
 
             else:
+                # In case of error, keep status as draft and log the error
                 self.write({
-                    'hka_status': 'error',
+                    'hka_status': 'draft',  # Keep as draft instead of error
                     'hka_message': result['message']
                 })
+                self.env.cr.rollback()  # Rollback transaction to ensure draft state
                 raise UserError(result['message'])
 
         except Exception as e:
+            # In case of any other error, keep as draft and rollback
             self.write({
-                'hka_status': 'error',
+                'hka_status': 'draft',  # Keep as draft instead of error
                 'hka_message': str(e)
             })
+            self.env.cr.rollback()  # Rollback transaction to ensure draft state
             raise UserError(str(e))
 
     def button_cancel_hka(self):
@@ -372,7 +376,7 @@ class AccountMove(models.Model):
         
         # First process regular lines
         for line in self.invoice_line_ids:
-            # Skip lines with quantity 0 and global discount lines
+            # Skip lines with quantity 0 and global discount lines (for both invoices and credit notes)
             if not line.quantity or self._is_global_discount_line(line):
                 continue
 
