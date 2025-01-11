@@ -37,8 +37,8 @@ patch(PartnerListScreen.prototype, {
             dv: partner?.dv || '',
             tipo_contribuyente: partner?.tipo_contribuyente || '',
             tipo_cliente_fe: partner?.tipo_cliente_fe || '',
-            l10n_pa_distrito_id: partner?.l10n_pa_distrito_id || '',
-            l10n_pa_corregimiento_id: partner?.l10n_pa_corregimiento_id || '',
+            l10n_pa_distrito_id: partner?.l10n_pa_distrito_id || false,
+            l10n_pa_corregimiento_id: partner?.l10n_pa_corregimiento_id || false,
             ruc_verified: partner?.ruc_verified || false,
             ruc_verification_date: partner?.ruc_verification_date || false,
         };
@@ -53,8 +53,8 @@ patch(PartnerListScreen.prototype, {
             dv: this.partner?.dv || '',
             tipo_contribuyente: this.partner?.tipo_contribuyente || '',
             tipo_cliente_fe: this.partner?.tipo_cliente_fe || '',
-            l10n_pa_distrito_id: this.partner?.l10n_pa_distrito_id?.[0] || '',
-            l10n_pa_corregimiento_id: this.partner?.l10n_pa_corregimiento_id?.[0] || '',
+            l10n_pa_distrito_id: this.partner?.l10n_pa_distrito_id || false,
+            l10n_pa_corregimiento_id: this.partner?.l10n_pa_corregimiento_id || false,
             ruc_verified: this.partner?.ruc_verified || false,
             ruc_verification_date: this.partner?.ruc_verification_date || false,
         };
@@ -98,8 +98,8 @@ patch(PartnerDetailsEdit.prototype, {
             dv: this.partner?.dv || '',
             tipo_contribuyente: this.partner?.tipo_contribuyente || '',
             tipo_cliente_fe: this.partner?.tipo_cliente_fe || '',
-            l10n_pa_distrito_id: this.partner?.l10n_pa_distrito_id?.[0] || '',
-            l10n_pa_corregimiento_id: this.partner?.l10n_pa_corregimiento_id?.[0] || '',
+            l10n_pa_distrito_id: this.partner?.l10n_pa_distrito_id || false,
+            l10n_pa_corregimiento_id: this.partner?.l10n_pa_corregimiento_id || false,
             ruc_verified: this.partner?.ruc_verified || false,
             ruc_verification_date: this.partner?.ruc_verification_date || false,
         };
@@ -279,7 +279,9 @@ patch(PartnerDetailsEdit.prototype, {
             ruc: this.changes.ruc,
             ruc_verified: this.changes.ruc_verified,
             ruc_verification_date: this.changes.ruc_verification_date,
-            dv: this.changes.dv
+            dv: this.changes.dv,
+            l10n_pa_distrito_id: this.changes.l10n_pa_distrito_id,
+            l10n_pa_corregimiento_id: this.changes.l10n_pa_corregimiento_id
         });
         
         const processedChanges = {};
@@ -294,16 +296,20 @@ patch(PartnerDetailsEdit.prototype, {
         for (const [key, value] of Object.entries(this.changes)) {
             if (this.intFields.includes(key)) {
                 processedChanges[key] = parseInt(value) || false;
+            } else if (key === 'l10n_pa_distrito_id' || key === 'l10n_pa_corregimiento_id') {
+                processedChanges[key] = value ? parseInt(value) : false;
             } else {
                 processedChanges[key] = value;
             }
         }
 
-        console.log("[ISFEHKA] After processing changes - verification fields:", {
+        console.log("[ISFEHKA] After processing changes:", {
             ruc: processedChanges.ruc,
             ruc_verified: processedChanges.ruc_verified,
             ruc_verification_date: processedChanges.ruc_verification_date,
-            dv: processedChanges.dv
+            dv: processedChanges.dv,
+            l10n_pa_distrito_id: processedChanges.l10n_pa_distrito_id,
+            l10n_pa_corregimiento_id: processedChanges.l10n_pa_corregimiento_id
         });
         
         // Handle required fields
