@@ -492,14 +492,35 @@ class AccountMove(models.Model):
         regular_items = len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0 and not self._is_global_discount_line(l)))
         total_items = regular_items + (1 if has_rounding_line else 0)
 
-        # Log the calculations for debugging
-        _logger.debug(f"totalPrecioNeto: {total_precio_neto}")
-        _logger.debug(f"totalITBMS: {total_itbms}")
-        _logger.debug(f"totalTodosItems (sum of valorTotal): {total_todos_items}")
-        _logger.debug(f"totalDescuento (global + rounding down): {total_discounts}")
-        _logger.debug(f"rounding_amount: {rounding_amount}")
-        _logger.debug(f"totalFactura: {total_factura}")
-        _logger.debug(f"nroItems: {total_items}")
+        # Prepare payment methods data
+        payment_methods = []
+        total_payments = 0.0
+
+        # For POS orders, use the payment lines
+        if hasattr(self, 'pos_order_ids') and self.pos_order_ids:
+            pos_order = self.pos_order_ids[0]
+            for payment in pos_order.payment_ids:
+                payment_method = payment.payment_method_id
+                amount = payment.amount
+
+                # Use configured HKA payment type or default to '99' (Other)
+                forma_pago = payment_method.hka_payment_type or '99'
+                desc_forma_pago = forma_pago == '99' and payment_method.name or ''
+
+                payment_methods.append({
+                    'formaPagoFact': forma_pago,
+                    'descFormaPago': desc_forma_pago,
+                    'valorCuotaPagada': '{:.2f}'.format(amount)
+                })
+                total_payments += amount
+        else:
+            # For regular invoices, use a single payment method
+            payment_methods.append({
+                'formaPagoFact': '02',  # Default to cash for regular invoices
+                'descFormaPago': '',
+                'valorCuotaPagada': '{:.2f}'.format(total_factura)
+            })
+            total_payments = total_factura
 
         data = {
             'totalPrecioNeto': '{:.2f}'.format(total_precio_neto),
@@ -507,17 +528,13 @@ class AccountMove(models.Model):
             'totalMontoGravado': '{:.2f}'.format(total_itbms),
             'totalDescuento': '{:.2f}'.format(total_discounts) if total_discounts > 0 else '',
             'totalFactura': '{:.2f}'.format(total_factura),
-            'totalValorRecibido': '{:.2f}'.format(total_factura),
+            'totalValorRecibido': '{:.2f}'.format(total_payments),
             'vuelto': '0.00',
             'tiempoPago': '1',
             'nroItems': str(total_items),
             'totalTodosItems': '{:.2f}'.format(total_todos_items),
             'listaFormaPago': {
-                'formaPago': [{
-                    'formaPagoFact': '02',
-                    'descFormaPago': '',
-                    'valorCuotaPagada': '{:.2f}'.format(total_factura)
-                }]
+                'formaPago': payment_methods
             }
         }
 
