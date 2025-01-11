@@ -499,7 +499,15 @@ class AccountMove(models.Model):
         # For POS orders, use the payment lines
         if hasattr(self, 'pos_order_ids') and self.pos_order_ids:
             pos_order = self.pos_order_ids[0]
-            for payment in pos_order.payment_ids:
+            change_amount = 0.00
+            
+            # First pass to identify change payments (negative amounts)
+            change_payments = pos_order.payment_ids.filtered(lambda p: p.amount < 0)
+            if change_payments:
+                change_amount = abs(sum(change_payments.mapped('amount')))
+            
+            # Second pass to add only positive payments
+            for payment in pos_order.payment_ids.filtered(lambda p: p.amount > 0):
                 payment_method = payment.payment_method_id
                 amount = payment.amount
 
@@ -513,6 +521,7 @@ class AccountMove(models.Model):
                     'valorCuotaPagada': '{:.2f}'.format(amount)
                 })
                 total_payments += amount
+
         else:
             # For regular invoices, use a single payment method
             payment_methods.append({
@@ -521,6 +530,7 @@ class AccountMove(models.Model):
                 'valorCuotaPagada': '{:.2f}'.format(total_factura)
             })
             total_payments = total_factura
+            change_amount = 0.00
 
         data = {
             'totalPrecioNeto': '{:.2f}'.format(total_precio_neto),
@@ -529,7 +539,7 @@ class AccountMove(models.Model):
             'totalDescuento': '{:.2f}'.format(total_discounts) if total_discounts > 0 else '',
             'totalFactura': '{:.2f}'.format(total_factura),
             'totalValorRecibido': '{:.2f}'.format(total_payments),
-            'vuelto': '0.00',
+            'vuelto': '{:.2f}'.format(change_amount),
             'tiempoPago': '1',
             'nroItems': str(total_items),
             'totalTodosItems': '{:.2f}'.format(total_todos_items),
