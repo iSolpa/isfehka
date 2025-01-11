@@ -495,11 +495,21 @@ class AccountMove(models.Model):
         # Prepare payment methods data
         payment_methods = []
         total_payments = 0.0
+        change_amount = 0.00
 
+        # For credit notes (refunds), handle payment differently
+        if self.tipo_documento == '04':
+            refund_amount = abs(total_factura)  # Get positive value of refund
+            payment_methods.append({
+                'formaPagoFact': '02',  # Use cash for refunds
+                'descFormaPago': '',
+                'valorCuotaPagada': '{:.2f}'.format(refund_amount)  # Put refund amount here
+            })
+            total_payments = refund_amount  # Set total payments to refund amount
+            change_amount = 0.00  # No change for refunds
         # For POS orders, use the payment lines
-        if hasattr(self, 'pos_order_ids') and self.pos_order_ids:
+        elif hasattr(self, 'pos_order_ids') and self.pos_order_ids:
             pos_order = self.pos_order_ids[0]
-            change_amount = 0.00
             
             # First pass to identify change payments (negative amounts)
             change_payments = pos_order.payment_ids.filtered(lambda p: p.amount < 0)
@@ -530,7 +540,6 @@ class AccountMove(models.Model):
                 'valorCuotaPagada': '{:.2f}'.format(total_factura)
             })
             total_payments = total_factura
-            change_amount = 0.00
 
         data = {
             'totalPrecioNeto': '{:.2f}'.format(total_precio_neto),

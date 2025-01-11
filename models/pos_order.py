@@ -8,6 +8,21 @@ class PosOrder(models.Model):
 
     def _generate_pos_order_invoice(self):
         """Override to handle HKA integration when creating invoices from POS orders"""
+        # Validate no mixed refund/sale lines when creating invoice
+        has_positive = False
+        has_negative = False
+        for line in self.lines:
+            if line.qty > 0:
+                has_positive = True
+            if line.qty < 0:
+                has_negative = True
+            if has_positive and has_negative:
+                raise models.ValidationError(_(
+                    'No se pueden generar facturas electrónicas que contengan '
+                    'tanto devoluciones como ventas en la misma orden. '
+                    'Por favor, separe la devolución y la venta en órdenes diferentes.'
+                ))
+
         # Call super to create the invoice
         moves = super()._generate_pos_order_invoice()
         
@@ -19,10 +34,10 @@ class PosOrder(models.Model):
             invoice = self.account_move
             if invoice:
                 try:
-                    # Set HKA fields from POS config
+                    # Set HKA fields from POS config, handling refunds properly
                     invoice.write({
-                        'tipo_documento': self.config_id.hka_tipo_documento,
-                        'naturaleza_operacion': self.config_id.hka_naturaleza_operacion,
+                        'tipo_documento': '04' if self.amount_total < 0 else self.config_id.hka_tipo_documento,
+                        'naturaleza_operacion': '04' if self.amount_total < 0 else self.config_id.hka_naturaleza_operacion,
                     })
                     # Send to HKA
                     invoice._send_to_hka()
