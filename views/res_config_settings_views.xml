@@ -28,7 +28,21 @@
                             <div class="o_setting_right_pane">
                                 <label for="isfehka_test_mode"/>
                                 <div class="text-muted">
-                                    Enable test mode for development environment
+                                    Usar ambiente de pruebas de HKA
+                                </div>
+                                <div class="mt8">
+                                    <field name="isfehka_test_mode"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="isfehka_default_tipo_documento"/>
+                                <div class="text-muted">
+                                    Tipo de documento por defecto para facturas generadas desde ventas/facturas
+                                </div>
+                                <div class="mt8">
+                                    <field name="isfehka_default_tipo_documento"/>
                                 </div>
                             </div>
                         </div>

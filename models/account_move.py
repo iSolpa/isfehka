@@ -68,7 +68,8 @@ class AccountMove(models.Model):
         ('07', 'Nota de Débito Genérica'),
         ('08', 'Factura de Zona Franca'),
         ('09', 'Factura de Reembolso')
-    ], string='Tipo de Documento', default='01', required=True)
+    ], string='Tipo de Documento', required=True,
+       default=lambda self: self.env['ir.config_parameter'].sudo().get_param('isfehka.default_tipo_documento', '01'))
 
     naturaleza_operacion = fields.Selection([
         ('01', 'Venta'),
