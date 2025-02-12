@@ -645,13 +645,13 @@ class AccountMove(models.Model):
                 errors.append(_('La factura referenciada debe ser una factura (tipo 01, 02, 03, 08).'))
 
         # Special validation for Consumidor Final
-        if partner.ruc == 'CF':
+        if partner.tipo_cliente_fe == '02':
             if not self.invoice_line_ids:
                 errors.append(_('La factura debe tener al menos una línea.'))
             if errors:
                 raise ValidationError('\n'.join(errors))
             return
-
+        
         # Regular validation
         if not partner.tipo_contribuyente:
             errors.append(_('El tipo de contribuyente del cliente es requerido.'))
