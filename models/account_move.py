@@ -325,13 +325,13 @@ class AccountMove(models.Model):
         partner = self.partner_id
         
         # Special case for Consumidor Final
-        if partner.ruc == 'CF' and partner.name == 'CONSUMIDOR FINAL':
+        if partner.ruc == 'CF':
             return {
                 'tipoClienteFE': '02',
-                'razonSocial': 'CONSUMIDOR FINAL',
-                'direccion': partner.street or 'Ciudad de Panama',
-                'telefono1': partner.phone or '235-2352',
-                'correoElectronico1': partner.email or '',
+                'razonSocial': partner.name,
+                'direccion': '',
+                'telefono1': '',
+                'correoElectronico1': '',
                 'pais': 'PA',
             }
         
@@ -340,7 +340,7 @@ class AccountMove(models.Model):
         
         return {
             'tipoClienteFE': partner.tipo_cliente_fe,
-            'tipoContribuyente': partner.tipo_contribuyente,
+            'tipoContribuyente': partner.tipo_contribuyente,  
             'numeroRUC': partner.ruc,
             'digitoVerificadorRUC': str(partner.dv).zfill(2),  # Ensure 2 digits with left padding
             'razonSocial': partner.name,
@@ -645,9 +645,7 @@ class AccountMove(models.Model):
                 errors.append(_('La factura referenciada debe ser una factura (tipo 01, 02, 03, 08).'))
 
         # Special validation for Consumidor Final
-        if partner.ruc == 'CF' and partner.name == 'CONSUMIDOR FINAL':
-            if not partner.street:
-                errors.append(_('La dirección del cliente es requerida.'))
+        if partner.ruc == 'CF':
             if not self.invoice_line_ids:
                 errors.append(_('La factura debe tener al menos una línea.'))
             if errors:

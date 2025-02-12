@@ -110,8 +110,7 @@ class ResPartner(models.Model):
                 'ruc_verified': True,
                 'ruc_verification_date': fields.Datetime.now(),
                 'dv': '00',
-                'tipo_cliente_fe': '02',  
-                'name': 'CONSUMIDOR FINAL',  
+                'tipo_cliente_fe': '02',
             })
             return {
                 'type': 'ir.actions.client',

@@ -1,6 +1,6 @@
 {
     'name': 'Panama Electronic Invoicing - HKA Integration',
-    'version': '1.0.12',
+    'version': '1.0.13',
     'category': 'Accounting/Localizations',
     'summary': 'Electronic Invoicing Integration for Panama with HKA',
     'description': """

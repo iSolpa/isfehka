@@ -193,9 +193,7 @@ patch(PartnerDetailsEdit.prototype, {
             this.changes.ruc_verified = true;
             this.changes.dv = '00';
             this.changes.tipo_cliente_fe = '02';
-            if (!this.props.partner.id) {  // Only set name if it's a new partner
-                this.changes.name = 'CONSUMIDOR FINAL';
-            }
+            
             this.changes.ruc_verification_date = this.formatDateTime(new Date());
             
             console.log("[ISFEHKA] After CF verification:", {
