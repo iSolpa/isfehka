@@ -122,6 +122,23 @@ class ResPartner(models.Model):
                 }
             }
 
+        # Skip verification for Extranjero
+        if self.tipo_cliente_fe == '04':
+            self.write({
+                'ruc_verified': True,
+                'ruc_verification_date': fields.Datetime.now(),
+                'dv': '00',  # Not applicable for foreign clients
+            })
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Éxito'),
+                    'message': _('Cliente Extranjero verificado'),
+                    'type': 'success',
+                }
+            }
+
         if not self.ruc or not self.tipo_contribuyente:
             raise UserError(_('Por favor ingrese el RUC y tipo de contribuyente'))
 

@@ -335,6 +335,19 @@ class AccountMove(models.Model):
                 'pais': 'PA',
             }
         
+        # Special case for Extranjero
+        if partner.tipo_cliente_fe == '04':
+            return {
+                'tipoClienteFE': '04',
+                'tipoIdentificacion': '99',  # Default for Extranjero
+                'nroIdentificacionExtranjero': partner.ruc,
+                'razonSocial': partner.name,
+                'correoElectronico1': partner.email or '',
+                'telefono1': partner.phone or '',
+                'pais': 'ZZ',
+                'paisOtro': partner.country_id.name or '',
+            }
+        
         # Regular case
         codigo_ubicacion = f"{partner.state_id.code or '0'}-{partner.l10n_pa_distrito_id.code or '0'}-{partner.l10n_pa_corregimiento_id.code or '0'}"
         
@@ -644,14 +657,27 @@ class AccountMove(models.Model):
             elif self.reversed_entry_id.tipo_documento not in ['01', '02', '03', '08']:
                 errors.append(_('La factura referenciada debe ser una factura (tipo 01, 02, 03, 08).'))
 
-        # Special validation for Consumidor Final
-        if partner.tipo_cliente_fe == '02':
+        # Special validation for Consumidor Final and Extranjero
+        if partner.tipo_cliente_fe in ['02', '04']:
             if not self.invoice_line_ids:
                 errors.append(_('La factura debe tener al menos una línea.'))
-            if errors:
-                raise ValidationError('\n'.join(errors))
+            
+            # Additional validations for Extranjero
+            if partner.tipo_cliente_fe == '04':
+                if not partner.ruc:
+                    errors.append(_('El número de identificación extranjera es requerido.'))
+                if not partner.name:
+                    errors.append(_('La razón social del cliente es requerida.'))
+                if not partner.country_id:
+                    errors.append(_('El país es requerido.'))
+                
+                if errors:
+                    raise ValidationError('\n'.join(errors))
+                # Mark the partner as verified for Extranjero clients if all validations pass
+                partner.ruc_verified = True
+                partner.ruc_verification_date = fields.Datetime.now()
             return
-        
+
         # Regular validation
         if not partner.tipo_contribuyente:
             errors.append(_('El tipo de contribuyente del cliente es requerido.'))
@@ -665,7 +691,7 @@ class AccountMove(models.Model):
             errors.append(_('La razón social del cliente es requerida.'))
         if not partner.street:
             errors.append(_('La dirección del cliente es requerida.'))
-        
+    
         # Validate location data
         if not partner.state_id:
             errors.append(_('La provincia del cliente es requerida.'))
@@ -677,7 +703,7 @@ class AccountMove(models.Model):
         # Validate invoice data
         if not self.invoice_line_ids:
             errors.append(_('La factura debe tener al menos una línea.'))
-        
+
         if errors:
             raise ValidationError('\n'.join(errors))
 

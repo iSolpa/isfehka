@@ -210,6 +210,26 @@ patch(PartnerDetailsEdit.prototype, {
             return;
         }
 
+        // Handle Extranjero case
+        if (this.changes.tipo_cliente_fe === '04') {
+            this.changes.ruc_verified = true;
+            this.changes.dv = '00';
+            this.changes.ruc_verification_date = this.formatDateTime(new Date());
+            
+            console.log("[ISFEHKA] After Extranjero verification:", {
+                ruc: this.changes.ruc,
+                ruc_verified: this.changes.ruc_verified,
+                ruc_verification_date: this.changes.ruc_verification_date,
+                dv: this.changes.dv
+            });
+
+            this.pos.env.services.notification.add(
+                _t('Cliente Extranjero verificado'),
+                { type: 'success' }
+            );
+            return;
+        }
+
         try {
             const result = await this.pos.env.services.orm.call(
                 'hka.service',
