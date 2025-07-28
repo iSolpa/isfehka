@@ -3,7 +3,7 @@
 import { patch } from "@web/core/utils/patch";
 import { PosStore } from "@point_of_sale/app/store/pos_store";
 import { PartnerListScreen } from "@point_of_sale/app/screens/partner_list/partner_list";
-import { PartnerDetailsEdit } from "@point_of_sale/app/screens/partner_list/partner_editor/partner_editor";
+import { PartnerEditor } from "@point_of_sale/app/screens/partner_editor/partner_editor";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
 import { useState, onMounted, useEffect } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
@@ -61,7 +61,7 @@ patch(PartnerListScreen.prototype, {
     },
 });
 
-patch(PartnerDetailsEdit.prototype, {
+patch(PartnerEditor.prototype, {
     setup() {
         super.setup();
         const partner = this.props.partner;
