@@ -152,7 +152,9 @@ class AccountMove(models.Model):
                 if fecha_recepcion:
                     try:
                         # Parse ISO format datetime with timezone: 2025-07-28T09:08:13-05:00
-                        parsed_fecha = datetime.fromisoformat(fecha_recepcion.replace('Z', '+00:00'))
+                        dt_with_tz = datetime.fromisoformat(fecha_recepcion.replace('Z', '+00:00'))
+                        # Convert to naive datetime (remove timezone) as Odoo expects
+                        parsed_fecha = dt_with_tz.replace(tzinfo=None)
                     except (ValueError, AttributeError) as e:
                         _logger.warning(f"Could not parse fechaRecepcionDGI '{fecha_recepcion}': {e}")
                         parsed_fecha = False
