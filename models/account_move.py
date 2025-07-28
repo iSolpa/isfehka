@@ -1,5 +1,6 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
+from datetime import datetime
 import base64
 import logging
 
@@ -145,12 +146,23 @@ class AccountMove(models.Model):
             if result['success']:
                 # First save the basic response data
                 self.env.cr.commit()  # Commit the transaction to ensure we don't lose the CUFE
+                # Parse the authorization date from HKA response
+                fecha_recepcion = result['data'].get('fechaRecepcionDGI', '')
+                parsed_fecha = False
+                if fecha_recepcion:
+                    try:
+                        # Parse ISO format datetime with timezone: 2025-07-28T09:08:13-05:00
+                        parsed_fecha = datetime.fromisoformat(fecha_recepcion.replace('Z', '+00:00'))
+                    except (ValueError, AttributeError) as e:
+                        _logger.warning(f"Could not parse fechaRecepcionDGI '{fecha_recepcion}': {e}")
+                        parsed_fecha = False
+                
                 self.write({
                     'hka_status': 'sent',
                     'hka_cufe': result['data'].get('cufe', ''),
                     'hka_qr': result['data'].get('qr', ''),
                     'hka_nro_protocolo_autorizacion': result['data'].get('nroProtocoloAutorizacion', ''),
-                    'hka_fecha_recepcion_dgi': result['data'].get('fechaRecepcionDGI', ''),
+                    'hka_fecha_recepcion_dgi': parsed_fecha,
                     'hka_message': _('Documento enviado exitosamente'),
                 })
                 self.env.cr.commit()  # Commit the transaction to ensure we don't lose the status
