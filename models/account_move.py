@@ -27,6 +27,12 @@ class AccountMove(models.Model):
         readonly=True,
         help='QR Code oficial de DGI para verificación de CUFE'
     )
+    
+    hka_nro_protocolo_autorizacion = fields.Char(
+        string='Número de Protocolo de Autorización',
+        readonly=True,
+        help='Número de protocolo de autorización de DGI'
+    )
 
     hka_pdf = fields.Binary(
         string='PDF HKA',
@@ -137,6 +143,7 @@ class AccountMove(models.Model):
                     'hka_status': 'sent',
                     'hka_cufe': result['data'].get('cufe', ''),
                     'hka_qr': result['data'].get('qr', ''),
+                    'hka_nro_protocolo_autorizacion': result['data'].get('nroProtocoloAutorizacion', ''),
                     'hka_message': _('Documento enviado exitosamente'),
                 })
                 self.env.cr.commit()  # Commit the transaction to ensure we don't lose the status
