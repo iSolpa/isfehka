@@ -33,6 +33,12 @@ class AccountMove(models.Model):
         readonly=True,
         help='Número de protocolo de autorización de DGI'
     )
+    
+    hka_fecha_recepcion_dgi = fields.Datetime(
+        string='Fecha de Recepción DGI',
+        readonly=True,
+        help='Fecha de autorización ante la DGI'
+    )
 
     hka_pdf = fields.Binary(
         string='PDF HKA',
@@ -144,6 +150,7 @@ class AccountMove(models.Model):
                     'hka_cufe': result['data'].get('cufe', ''),
                     'hka_qr': result['data'].get('qr', ''),
                     'hka_nro_protocolo_autorizacion': result['data'].get('nroProtocoloAutorizacion', ''),
+                    'hka_fecha_recepcion_dgi': result['data'].get('fechaRecepcionDGI', ''),
                     'hka_message': _('Documento enviado exitosamente'),
                 })
                 self.env.cr.commit()  # Commit the transaction to ensure we don't lose the status
