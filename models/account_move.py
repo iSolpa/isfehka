@@ -140,6 +140,13 @@ class AccountMove(models.Model):
                     'hka_message': _('Documento enviado exitosamente'),
                 })
                 self.env.cr.commit()  # Commit the transaction to ensure we don't lose the status
+                
+                # Trigger sync to POS orders if isfehka_cafe module is installed
+                try:
+                    self._sync_cufe_to_pos_orders()
+                except AttributeError:
+                    # Method doesn't exist if isfehka_cafe module is not installed
+                    pass
 
                 try:
                     # Then handle PDF and XML files with proper filenames
