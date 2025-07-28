@@ -37,11 +37,6 @@
     ],
     'assets': {
         'point_of_sale._assets_pos': [
-            # Load our XML AFTER the core Partner Details template to avoid missing parent errors
-            (
-                'after',
-                'point_of_sale/static/src/xml/partner_editor.xml'
-            ),
             'isfehka/static/src/js/pos_partner_extension.js',
             'isfehka/static/src/xml/pos_partner_extension.xml',
         ],
