@@ -1,6 +1,111 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
-    <!-- Partner extension templates removed for Odoo 18 compatibility -->
-    <!-- The partner editor component structure has changed in Odoo 18 -->
-    <!-- Custom partner fields functionality is handled through JavaScript patches only -->
+    <t t-name="isfehka.PartnerDetailsEditExtension"
+       t-inherit="point_of_sale.PartnerDetailsEdit"
+       t-inherit-mode="extension"
+       owl="1">
+       
+        <!-- 1) Remove "City" from the for-each -->
+        <xpath expr="//section[hasclass('partner-details')]//div[hasclass('partner-details-box')]/t[@t-foreach]"
+               position="attributes">
+            <attribute name="t-foreach">
+                ['Email', 'Phone', 'Mobile', 'Barcode', 'Street' ]
+            </attribute>
+        </xpath>
+
+        <!-- 2) Hide the VAT field -->
+        <xpath expr="//input[@name='vat']/.." position="attributes">
+            <attribute name="t-if">false</attribute>
+        </xpath>
+
+        <!-- 3) Insert our custom fields immediately after the State field -->
+        <xpath expr="//section[hasclass('partner-details')]
+                     //div[hasclass('partner-details-box')]
+                     /div[label[@for='state']]"
+               position="after">
+            <!-- Distrito -->
+            <div class="partner-detail col">
+                <label class="form-label label" for="l10n_pa_distrito_id">Distrito</label>
+                <select class="detail form-select"
+                        id="l10n_pa_distrito_id"
+                        name="l10n_pa_distrito_id"
+                        t-model="changes.l10n_pa_distrito_id"
+                        t-att-disabled="!changes.state_id">
+                    <option value="">Seleccionar...</option>
+                    <t t-foreach="state.filteredDistritos" t-as="distrito" t-key="distrito.id">
+                        <option t-att-value="distrito.id">
+                            <t t-esc="distrito.name"/>
+                        </option>
+                    </t>
+                </select>
+            </div>
+
+            <!-- Corregimiento -->
+            <div class="partner-detail col">
+                <label class="form-label label" for="l10n_pa_corregimiento_id">Corregimiento</label>
+                <select class="detail form-select"
+                        id="l10n_pa_corregimiento_id"
+                        name="l10n_pa_corregimiento_id"
+                        t-model="changes.l10n_pa_corregimiento_id"
+                        t-att-disabled="!changes.l10n_pa_distrito_id">
+                    <option value="">Seleccionar...</option>
+                    <t t-foreach="pos.corregimientos || []" t-as="corregimiento" t-key="corregimiento.id">
+                        <option t-if="changes.l10n_pa_distrito_id == corregimiento.distrito_id[0]"
+                                t-att-value="corregimiento.id">
+                            <t t-esc="corregimiento.name"/>
+                        </option>
+                    </t>
+                </select>
+            </div>
+
+            <!-- RUC -->
+            <div class="partner-detail col">
+                <label class="form-label label" for="ruc">RUC</label>
+                <div class="d-flex">
+                    <input class="detail form-control" id="ruc" name="ruc" t-model="changes.ruc"/>
+                    <button class="btn btn-primary ms-2 verify-ruc"
+                            t-on-click="verifyRUC"
+                            t-att-disabled="changes.ruc_verified">
+                        <i class="fa fa-check-circle"/> Verificar
+                    </button>
+                </div>
+                <input type="hidden" name="ruc_verified" t-model="changes.ruc_verified"/>
+                <input type="hidden" name="ruc_verification_date" t-model="changes.ruc_verification_date"/>
+            </div>
+
+            <!-- DV -->
+            <div class="partner-detail col">
+                <label class="form-label label" for="dv">DV</label>
+                <input class="detail form-control" id="dv" name="dv" t-model="changes.dv"/>
+            </div>
+
+            <!-- Tipo Contribuyente -->
+            <div class="partner-detail col">
+                <label class="form-label label" for="tipo_contribuyente">Tipo Contribuyente</label>
+                <select class="detail form-select"
+                        id="tipo_contribuyente"
+                        name="tipo_contribuyente"
+                        t-model="changes.tipo_contribuyente">
+                    <option value="">Seleccionar...</option>
+                    <option value="1">Natural</option>
+                    <option value="2">Jurídico</option>
+                </select>
+            </div>
+
+            <!-- Tipo Cliente FE -->
+            <div class="partner-detail col">
+                <label class="form-label label" for="tipo_cliente_fe">Tipo Cliente FE</label>
+                <select class="detail form-select"
+                        id="tipo_cliente_fe"
+                        name="tipo_cliente_fe"
+                        t-model="changes.tipo_cliente_fe">
+                    <option value="">Seleccionar...</option>
+                    <option value="01">Contribuyente</option>
+                    <option value="02">Consumidor Final</option>
+                    <option value="03">Gobierno</option>
+                    <option value="04">Extranjero</option>
+                </select>
+            </div>
+        </xpath>
+    </t>
 </templates>
