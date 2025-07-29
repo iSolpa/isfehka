@@ -35,12 +35,12 @@
         'report/account_move_templates.xml',
         'views/menu_views.xml',
     ],
-    'assets': {
-        'point_of_sale._assets_pos': [
-            'isfehka/static/src/js/pos_partner_extension.js',
-            'isfehka/static/src/xml/pos_partner_extension.xml',
-        ],
-    },
+    # 'assets': {
+    #     'point_of_sale._assets_pos': [
+    #         'isfehka/static/src/js/pos_partner_extension.js',
+    #         'isfehka/static/src/xml/pos_partner_extension.xml',
+    #     ],
+    # },
     'external_dependencies': {
         'python': ['zeep'],
     },
