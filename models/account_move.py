@@ -127,7 +127,7 @@ class AccountMove(models.Model):
         self.ensure_one()
         
         # Add recursion protection
-        if hasattr(self, '_hka_sending') and self._hka_sending:
+        if getattr(self, '_hka_sending', False):
             _logger.error("Recursion detected in _send_to_hka for invoice %s", self.name)
             raise UserError(_('Error de recursión detectado al enviar a HKA'))
         
