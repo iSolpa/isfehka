@@ -7,7 +7,8 @@ class PosConfig(models.Model):
     hka_pos_code = fields.Char(
         string='HKA POS Code',
         default='001',
-        help='Point of Sale code for HKA integration (3 digits)'
+        size=10,
+        help='Point of Sale code for HKA integration (up to 10 digits)'
     )
 
     use_hka_pdf_receipt = fields.Boolean(
