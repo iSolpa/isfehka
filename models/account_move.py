@@ -126,12 +126,13 @@ class AccountMove(models.Model):
         """Send invoice to HKA"""
         self.ensure_one()
         
-        # Add recursion protection
-        if getattr(self, '_hka_sending', False):
-            _logger.error("Recursion detected in _send_to_hka for invoice %s", self.name)
+        # Add recursion protection using context flag to avoid attribute errors
+        if self.env.context.get('hka_sending'):
+            _logger.error("Recursión detectada en _send_to_hka para la factura %s", self.name)
             raise UserError(_('Error de recursión detectado al enviar a HKA'))
-        
-        self._hka_sending = True
+
+        # Re-enter method with context flag set
+        self = self.with_context(hka_sending=True)
         
         try:
             if self.hka_status == 'sent':
@@ -227,9 +228,8 @@ class AccountMove(models.Model):
             self.env.cr.rollback()  # Rollback transaction to ensure draft state
             raise UserError(str(e))
         finally:
-            # Always clear the recursion protection flag
-            if hasattr(self, '_hka_sending'):
-                delattr(self, '_hka_sending')
+            # No explicit cleanup needed for context flag
+            pass
 
     def button_cancel_hka(self):
         """Open the cancellation reason wizard"""
