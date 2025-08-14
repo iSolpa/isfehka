@@ -140,14 +140,12 @@ class AccountMove(models.Model):
             # Validate required data before sending
             self._validate_hka_data()
 
-        # Get the next fiscal number if needed
-        if not self.numero_documento_fiscal:
-            fiscal_number = self._get_next_fiscal_number()
-            if not fiscal_number:
-                raise UserError(_('No se pudo obtener el próximo número fiscal.'))
-            self.numero_documento_fiscal = fiscal_number
-
-        try:
+            # Get the next fiscal number if needed
+            if not self.numero_documento_fiscal:
+                fiscal_number = self._get_next_fiscal_number()
+                if not fiscal_number:
+                    raise UserError(_('No se pudo obtener el próximo número fiscal.'))
+                self.numero_documento_fiscal = fiscal_number
             hka_service = self.env['hka.service']
             invoice_data = self._prepare_hka_data()
             result = hka_service.send_invoice(invoice_data)
