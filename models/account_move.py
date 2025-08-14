@@ -321,6 +321,22 @@ class AccountMove(models.Model):
             raise UserError(_('Please configure an HKA POS Code in company settings'))
         return self.company_id.hka_pos_code
 
+    def _sanitize_hka_text(self, text, max_length=50):
+        """Sanitize text for HKA integration with length enforcement"""
+        import re
+        if not text:
+            return 'Descuento'
+        # Remove any special characters except alphanumeric, spaces, periods, and hyphens
+        sanitized = re.sub(r'[^\w\s.-]', '', text)
+        # Remove square brackets and their contents
+        sanitized = re.sub(r'\[.*?\]', '', sanitized)
+        # Replace multiple spaces with a single space and strip
+        sanitized = ' '.join(sanitized.split())
+        # Enforce maximum length
+        sanitized = sanitized[:max_length] if sanitized else ''
+        # If empty after sanitization, return default (also enforcing max length)
+        return sanitized.strip() or 'Descuento'[:max_length]
+
     def _prepare_hka_data(self):
         """Prepare invoice data for HKA"""
         self.ensure_one()
@@ -520,29 +536,22 @@ class AccountMove(models.Model):
                     'precioItem': '{:.2f}'.format(abs(rounding_amount)),
                     'valorTotal': '{:.2f}'.format(abs(rounding_amount)),
                     'tasaITBMS': '00',  # No tax
-                    'valorITBMS': '0.00',
                 })
-        
-        return items
 
-    def _sanitize_hka_text(self, text):
-        """Sanitize text for HKA API to avoid invalid characters"""
-        import re
-        if not text:
-            return 'Descuento'
-        # Remove any special characters except alphanumeric, spaces, periods, and hyphens
-        sanitized = re.sub(r'[^\w\s.-]', '', text)
-        # Remove square brackets and their contents
-        sanitized = re.sub(r'\[.*?\]', '', sanitized)
-        # Replace multiple spaces with a single space and strip
-        sanitized = ' '.join(sanitized.split())
-        # If empty after sanitization, return default
-        return sanitized.strip() or 'Descuento'
-
-    def _prepare_hka_totals_data(self):
-        """Prepare totals data for HKA"""
-        # Calculate rounding amount
-        rounding_amount = self.amount_total - sum(l.price_total for l in self.invoice_line_ids)
+            # Handle rounding
+            rounding_amount = self.amount_total - sum(l.price_total for l in self.invoice_line_ids)
+            if abs(rounding_amount) >= 0.01:  # Only process significant rounding
+                if rounding_amount > 0:  # Rounding up - add as a line item
+                    items.append({
+                        'descripcion': 'Ajuste por Redondeo',
+                        'cantidad': '1.000',
+                        'precioUnitario': '{:.3f}'.format(abs(rounding_amount)),
+                        'precioUnitarioDescuento': '0.000',
+                        'precioItem': '{:.2f}'.format(abs(rounding_amount)),
+                        'valorTotal': '{:.2f}'.format(abs(rounding_amount)),
+                        'tasaITBMS': '00',  # No tax
+                        'valorITBMS': '0.00',
+                    })
         has_rounding_line = rounding_amount > 0.01  # Track if we'll add a rounding line item
         
         # Prepare items data
@@ -615,7 +624,14 @@ class AccountMove(models.Model):
 
                 # Use configured HKA payment type or default to '99' (Other)
                 forma_pago = payment_method.hka_payment_type or '99'
-                desc_forma_pago = forma_pago == '99' and payment_method.name or ''
+                
+                # Handle descFormaPago with proper length restrictions
+                if forma_pago == '99':
+                    # For "Other" payment type, use truncated payment method name (max 20 chars)
+                    desc_forma_pago = (payment_method.name or '')[:20]
+                else:
+                    # For standard payment types, leave description empty
+                    desc_forma_pago = ''
 
                 payment_methods.append({
                     'formaPagoFact': forma_pago,
@@ -656,7 +672,7 @@ class AccountMove(models.Model):
         if global_discount_lines:
             for line in global_discount_lines:
                 discount_bonifications.append({
-                    'descDescuento': self._sanitize_hka_text(line.name),
+                    'descDescuento': self._sanitize_hka_text(line.name, max_length=30),
                     'montoDescuento': '{:.2f}'.format(abs(line.price_subtotal))
                 })
         
