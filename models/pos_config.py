@@ -40,5 +40,5 @@ class PosConfig(models.Model):
     @api.constrains('hka_pos_code')
     def _check_hka_pos_code(self):
         for config in self:
-            if config.hka_pos_code and (not config.hka_pos_code.isdigit() or len(config.hka_pos_code) != 3):
-                raise ValidationError(_('HKA POS Code must be exactly 3 digits'))
+            if config.hka_pos_code and (not config.hka_pos_code.isdigit() or len(config.hka_pos_code) < 1 or len(config.hka_pos_code) > 10):
+                raise ValidationError(_('HKA POS Code must be between 1 and 10 digits'))
