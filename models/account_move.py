@@ -125,11 +125,20 @@ class AccountMove(models.Model):
     def _send_to_hka(self):
         """Send invoice to HKA"""
         self.ensure_one()
-        if self.hka_status == 'sent':
-            raise UserError(_('Esta factura ya ha sido enviada a HKA'))
+        
+        # Add recursion protection
+        if hasattr(self, '_hka_sending') and self._hka_sending:
+            _logger.error("Recursion detected in _send_to_hka for invoice %s", self.name)
+            raise UserError(_('Error de recursión detectado al enviar a HKA'))
+        
+        self._hka_sending = True
+        
+        try:
+            if self.hka_status == 'sent':
+                raise UserError(_('Esta factura ya ha sido enviada a HKA'))
 
-        # Validate required data before sending
-        self._validate_hka_data()
+            # Validate required data before sending
+            self._validate_hka_data()
 
         # Get the next fiscal number if needed
         if not self.numero_documento_fiscal:
@@ -219,6 +228,10 @@ class AccountMove(models.Model):
             })
             self.env.cr.rollback()  # Rollback transaction to ensure draft state
             raise UserError(str(e))
+        finally:
+            # Always clear the recursion protection flag
+            if hasattr(self, '_hka_sending'):
+                delattr(self, '_hka_sending')
 
     def button_cancel_hka(self):
         """Open the cancellation reason wizard"""
@@ -324,8 +337,14 @@ class AccountMove(models.Model):
     def _sanitize_hka_text(self, text, max_length=50):
         """Sanitize text for HKA integration with length enforcement"""
         import re
+        
+        # Handle None or empty text
         if not text:
-            return 'Descuento'
+            return 'Descuento'[:max_length]
+        
+        # Convert to string to handle non-string inputs
+        text = str(text)
+        
         # Remove any special characters except alphanumeric, spaces, periods, and hyphens
         sanitized = re.sub(r'[^\w\s.-]', '', text)
         # Remove square brackets and their contents
@@ -334,8 +353,14 @@ class AccountMove(models.Model):
         sanitized = ' '.join(sanitized.split())
         # Enforce maximum length
         sanitized = sanitized[:max_length] if sanitized else ''
-        # If empty after sanitization, return default (also enforcing max length)
-        return sanitized.strip() or 'Descuento'[:max_length]
+        
+        # Return sanitized text or default, ensuring we don't return empty string
+        result = sanitized.strip()
+        if not result:
+            result = 'Descuento'
+        
+        # Final length enforcement
+        return result[:max_length]
 
     def _prepare_hka_data(self):
         """Prepare invoice data for HKA"""
