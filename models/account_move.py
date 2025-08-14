@@ -262,6 +262,42 @@ class AccountMove(models.Model):
         except Exception as e:
             raise UserError(str(e))
 
+    def button_send_to_hka(self):
+        """Manual button to send invoice to HKA"""
+        self.ensure_one()
+        
+        # Check if invoice is posted
+        if self.state != 'posted':
+            raise UserError(_('Solo se pueden enviar facturas confirmadas a HKA'))
+        
+        # Check if already sent
+        if self.hka_status == 'sent':
+            raise UserError(_('Esta factura ya ha sido enviada a HKA'))
+        
+        try:
+            self._send_to_hka()
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Éxito'),
+                    'message': _('Factura enviada exitosamente a HKA'),
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+        except Exception as e:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Error'),
+                    'message': str(e),
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
+
     def _get_hka_branch(self):
         """Get the branch code to use for HKA integration"""
         self.ensure_one()
