@@ -126,13 +126,7 @@ class AccountMove(models.Model):
         """Send invoice to HKA"""
         self.ensure_one()
         
-        # Add recursion protection using context flag to avoid attribute errors
-        if self.env.context.get('hka_sending'):
-            _logger.error("Recursión detectada en _send_to_hka para la factura %s", self.name)
-            raise UserError(_('Error de recursión detectado al enviar a HKA'))
-
-        # Re-enter method with context flag set
-        self = self.with_context(hka_sending=True)
+        # Temporarily removed recursion protection to isolate the issue
         
         try:
             if self.hka_status == 'sent':
