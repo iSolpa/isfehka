@@ -49,23 +49,16 @@ class PosOrder(models.Model):
                         error_msg
                     )
                     # Mark invoice as error and store the message
-                    invoice.write({
+                    # Use sudo() to avoid potential recursion in access rights checks
+                    invoice.sudo().write({
                         'hka_status': 'error',
                         'hka_message': error_msg
                     })
-                    # Delete the invoice since it failed HKA validation
-                    invoice.button_draft()
-                    invoice.button_cancel()
-                    invoice.unlink()
-                    # Reset POS order state
-                    self.write({
-                        'state': 'draft',
-                        'account_move': False,
-                    })
-                    # Raise error to prevent completion
-                    raise models.ValidationError(_(
-                        'Error al enviar la factura a HKA. Por favor contacte al administrador.\n\n'
-                        'Detalles: %s'
-                    ) % error_msg)
+                    # Don't delete the invoice - just mark it as error
+                    # This prevents recursion issues and allows manual retry later
+                    _logger.warning(
+                        'Invoice %s marked as HKA error. Use "Send to HKA" button to retry.',
+                        invoice.name or 'Unknown'
+                    )
         
         return moves
