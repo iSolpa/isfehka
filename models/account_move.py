@@ -393,10 +393,14 @@ class AccountMove(models.Model):
             if not self.reversed_entry_id.hka_cufe:
                 raise UserError(_('La factura referenciada debe tener un CUFE válido'))
 
+            # Use the HKA reception date (when CUFE was generated) if available to match CUFE date
+            ref_dt = self.reversed_entry_id.hka_fecha_recepcion_dgi or self.reversed_entry_id.invoice_date
+            fecha_ref_str = ref_dt.strftime('%Y-%m-%dT%H:%M:%S-05:00') if ref_dt else fields.Datetime.now().strftime('%Y-%m-%dT%H:%M:%S-05:00')
+
             data['documento']['datosTransaccion']['informacionInteres'] = 'Factura de nota de credito referenciada'
             data['documento']['datosTransaccion']['listaDocsFiscalReferenciados'] = {
                 'docFiscalReferenciado': [{
-                    'fechaEmisionDocFiscalReferenciado': self.reversed_entry_id.invoice_date.strftime('%Y-%m-%dT%H:%M:%S-05:00'),
+                    'fechaEmisionDocFiscalReferenciado': fecha_ref_str,
                     'cufeFEReferenciada': self.reversed_entry_id.hka_cufe,
                     'nroFacturaPapel': '',
                     'nroFacturaImpFiscal': '',
