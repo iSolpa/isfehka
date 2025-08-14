@@ -1,4 +1,5 @@
 from odoo import models, _
+from odoo.exceptions import ValidationError
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ class PosOrder(models.Model):
             if line.qty < 0:
                 has_negative = True
             if has_positive and has_negative:
-                raise models.ValidationError(_(
+                raise ValidationError(_(
                     'No se pueden generar facturas electrónicas que contengan '
                     'tanto devoluciones como ventas en la misma orden. '
                     'Por favor, separe la devolución y la venta en órdenes diferentes.'
@@ -39,8 +40,9 @@ class PosOrder(models.Model):
                         'tipo_documento': '04' if self.amount_total < 0 else self.config_id.hka_tipo_documento,
                         'naturaleza_operacion': '04' if self.amount_total < 0 else self.config_id.hka_naturaleza_operacion,
                     })
-                    # Send to HKA
-                    invoice._send_to_hka()
+                    # Send to HKA only if not already sent by action_post
+                    if invoice.hka_status != 'sent':
+                        invoice._send_to_hka()
                 except Exception as e:
                     error_msg = str(e)
                     _logger.error(
@@ -49,16 +51,23 @@ class PosOrder(models.Model):
                         error_msg
                     )
                     # Mark invoice as error and store the message
-                    # Use sudo() to avoid potential recursion in access rights checks
-                    invoice.sudo().write({
+                    invoice.write({
                         'hka_status': 'error',
                         'hka_message': error_msg
                     })
-                    # Don't delete the invoice - just mark it as error
-                    # This prevents recursion issues and allows manual retry later
-                    _logger.warning(
-                        'Invoice %s marked as HKA error. Use "Send to HKA" button to retry.',
-                        invoice.name or 'Unknown'
-                    )
+                    # Delete the invoice since it failed HKA validation
+                    invoice.button_draft()
+                    invoice.button_cancel()
+                    invoice.unlink()
+                    # Reset POS order state
+                    self.write({
+                        'state': 'draft',
+                        'account_move': False,
+                    })
+                    # Raise error to prevent completion
+                    raise ValidationError(_(
+                        'Error al enviar la factura a HKA. Por favor contacte al administrador.\n\n'
+                        'Detalles: %s'
+                    ) % error_msg)
         
         return moves

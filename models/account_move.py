@@ -115,32 +115,48 @@ class AccountMove(models.Model):
             if move.tipo_documento == '04' and not move.reversed_entry_id:
                 raise ValidationError(_('Debe seleccionar una factura a la cual aplicar la nota de crédito.'))
 
-    def action_post(self):
+    def _post(self, soft=True):
         """Override to send invoice to HKA when posting"""
-        res = super().action_post()
+        res = super()._post(soft)
         for move in self.filtered(lambda m: m.move_type in ('out_invoice', 'out_refund')):
+            # Ensure correct HKA document settings for POS-origin invoices before sending
+            try:
+                if hasattr(move, 'pos_order_ids') and move.pos_order_ids:
+                    pos_order = move.pos_order_ids[0]
+                    if getattr(move, 'amount_total_signed', move.amount_total) < 0:
+                        move.write({
+                            'tipo_documento': '04',
+                            'naturaleza_operacion': '04',
+                        })
+                    else:
+                        tipo = getattr(pos_order.config_id, 'hka_tipo_documento', move.tipo_documento) or move.tipo_documento
+                        nat = getattr(pos_order.config_id, 'hka_naturaleza_operacion', move.naturaleza_operacion) or move.naturaleza_operacion
+                        move.write({
+                            'tipo_documento': tipo,
+                            'naturaleza_operacion': nat,
+                        })
+            except Exception as e:
+                _logger.warning('Failed to set HKA POS fields on move %s: %s', move.name or move.id, e)
             move._send_to_hka()
         return res
 
     def _send_to_hka(self):
         """Send invoice to HKA"""
         self.ensure_one()
-        
-        # Temporarily removed recursion protection to isolate the issue
-        
+        if self.hka_status == 'sent':
+            raise UserError(_('Esta factura ya ha sido enviada a HKA'))
+
+        # Validate required data before sending
+        self._validate_hka_data()
+
+        # Get the next fiscal number if needed
+        if not self.numero_documento_fiscal:
+            fiscal_number = self._get_next_fiscal_number()
+            if not fiscal_number:
+                raise UserError(_('No se pudo obtener el próximo número fiscal.'))
+            self.numero_documento_fiscal = fiscal_number
+
         try:
-            if self.hka_status == 'sent':
-                raise UserError(_('Esta factura ya ha sido enviada a HKA'))
-
-            # Validate required data before sending
-            self._validate_hka_data()
-
-            # Get the next fiscal number if needed
-            if not self.numero_documento_fiscal:
-                fiscal_number = self._get_next_fiscal_number()
-                if not fiscal_number:
-                    raise UserError(_('No se pudo obtener el próximo número fiscal.'))
-                self.numero_documento_fiscal = fiscal_number
             hka_service = self.env['hka.service']
             invoice_data = self._prepare_hka_data()
             result = hka_service.send_invoice(invoice_data)
@@ -221,9 +237,6 @@ class AccountMove(models.Model):
             })
             self.env.cr.rollback()  # Rollback transaction to ensure draft state
             raise UserError(str(e))
-        finally:
-            # No explicit cleanup needed for context flag
-            pass
 
     def button_cancel_hka(self):
         """Open the cancellation reason wizard"""
@@ -329,14 +342,8 @@ class AccountMove(models.Model):
     def _sanitize_hka_text(self, text, max_length=50):
         """Sanitize text for HKA integration with length enforcement"""
         import re
-        
-        # Handle None or empty text
         if not text:
-            return 'Descuento'[:max_length]
-        
-        # Convert to string to handle non-string inputs
-        text = str(text)
-        
+            return 'Descuento'
         # Remove any special characters except alphanumeric, spaces, periods, and hyphens
         sanitized = re.sub(r'[^\w\s.-]', '', text)
         # Remove square brackets and their contents
@@ -345,14 +352,8 @@ class AccountMove(models.Model):
         sanitized = ' '.join(sanitized.split())
         # Enforce maximum length
         sanitized = sanitized[:max_length] if sanitized else ''
-        
-        # Return sanitized text or default, ensuring we don't return empty string
-        result = sanitized.strip()
-        if not result:
-            result = 'Descuento'
-        
-        # Final length enforcement
-        return result[:max_length]
+        # If empty after sanitization, return default (also enforcing max length)
+        return sanitized.strip() or 'Descuento'[:max_length]
 
     def _prepare_hka_data(self):
         """Prepare invoice data for HKA"""
