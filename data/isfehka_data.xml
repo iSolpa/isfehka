@@ -1,17 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo noupdate="1">
-    <!-- Default WSDL URL for test environment -->
-    <record id="default_wsdl_url" model="ir.config_parameter" forcecreate="false">
-        <field name="key">isfehka.wsdl_url</field>
-        <field name="value">https://demoemision.thefactoryhka.com.pa/ws/obj/v1.0/Service.svc?singleWsdl</field>
-    </record>
-
-    <!-- Default test mode enabled -->
-    <record id="default_test_mode" model="ir.config_parameter" forcecreate="false">
-        <field name="key">isfehka.test_mode</field>
-        <field name="value">True</field>
-    </record>
-
     <!-- Default Consumidor Final client -->
     <record id="partner_consumidor_final" model="res.partner" forcecreate="false">
         <field name="name">CONSUMIDOR FINAL</field>

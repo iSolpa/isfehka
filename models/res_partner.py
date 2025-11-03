@@ -142,7 +142,8 @@ class ResPartner(models.Model):
         if not self.ruc or not self.tipo_contribuyente:
             raise UserError(_('Por favor ingrese el RUC y tipo de contribuyente'))
 
-        hka_service = self.env['hka.service']
+        company = self.company_id or self.env.company
+        hka_service = self.env['hka.service'].with_company(company)
         result = hka_service.verify_ruc(self.ruc, self.tipo_contribuyente)
 
         if result['success']:

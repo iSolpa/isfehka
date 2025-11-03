@@ -8,6 +8,7 @@
             <xpath expr="//notebook" position="inside">
                     <page string="HKA Configuration" name="hka_config">
                         <group>
+                            <field name="hka_configuration_id" options="{'no_create_edit': False}"/>
                             <field name="hka_branch_code"/>
                             <field name="hka_pos_code"/>
                         </group>

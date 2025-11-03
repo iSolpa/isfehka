@@ -58,6 +58,13 @@ class AccountMove(models.Model):
         readonly=True
     )
 
+    @api.model
+    def _default_tipo_documento(self):
+        company_id = self.env.context.get('default_company_id') or self.env.company.id
+        company = self.env['res.company'].browse(company_id)
+        config = company.hka_configuration_id
+        return config.default_tipo_documento if config else '01'
+
     tipo_documento = fields.Selection([
         ('01', 'Factura de Operación Interna'),
         ('02', 'Factura de Importación'),
@@ -69,7 +76,7 @@ class AccountMove(models.Model):
         ('08', 'Factura de Zona Franca'),
         ('09', 'Factura de Reembolso')
     ], string='Tipo de Documento', required=True,
-       default=lambda self: self.env['ir.config_parameter'].sudo().get_param('isfehka.default_tipo_documento', '01'))
+       default=lambda self: self._default_tipo_documento())
 
     naturaleza_operacion = fields.Selection([
         ('01', 'Venta'),
@@ -111,6 +118,7 @@ class AccountMove(models.Model):
 
         # Validate required data before sending
         self._validate_hka_data()
+        self._get_hka_configuration()
 
         # Get the next fiscal number if needed
         if not self.numero_documento_fiscal:
@@ -120,7 +128,7 @@ class AccountMove(models.Model):
             self.numero_documento_fiscal = fiscal_number
 
         try:
-            hka_service = self.env['hka.service']
+            hka_service = self.env['hka.service'].with_company(self.company_id)
             invoice_data = self._prepare_hka_data()
             result = hka_service.send_invoice(invoice_data)
 
@@ -204,8 +212,10 @@ class AccountMove(models.Model):
         if self.hka_status != 'sent':
             raise UserError(_('Solo se pueden anular documentos enviados'))
 
+        self._get_hka_configuration()
+
         try:
-            hka_service = self.env['hka.service']
+            hka_service = self.env['hka.service'].with_company(self.company_id)
             cancel_data = self._prepare_cancel_data()
             result = hka_service.cancel_document(cancel_data)
 
@@ -219,6 +229,15 @@ class AccountMove(models.Model):
 
         except Exception as e:
             raise UserError(str(e))
+
+    def _get_hka_configuration(self):
+        """Get the configuration set used by this invoice's company"""
+        self.ensure_one()
+        config = self.company_id.hka_configuration_id
+        if not config:
+            raise UserError(_('Configure un conjunto de credenciales HKA para la compañía %s.')
+                            % self.company_id.display_name)
+        return config
 
     def _get_hka_branch(self):
         """Get the branch code to use for HKA integration"""
@@ -294,31 +313,12 @@ class AccountMove(models.Model):
         return data
 
     def _get_next_fiscal_number(self):
-        """Get and increment the next fiscal number using SQL for concurrency control."""
+        """Get and increment the next fiscal number using the shared configuration."""
         self.ensure_one()
         if self.hka_status != 'draft':
             return False
-
-        self.env.cr.execute("""
-            SELECT value FROM ir_config_parameter 
-            WHERE key = 'isfehka.next_number' 
-            FOR UPDATE NOWAIT
-        """)
-        current_number = self.env.cr.fetchone()
-        if not current_number:
-            raise UserError(_('No se ha configurado el próximo número fiscal en los ajustes de HKA.'))
-        
-        next_number = current_number[0]
-        # Update the next number immediately
-        new_number = str(int(next_number) + 1).zfill(10)
-        self.env.cr.execute("""
-            UPDATE ir_config_parameter 
-            SET value = %s 
-            WHERE key = 'isfehka.next_number'
-        """, [new_number])
-        self.env.cr.commit()  # Commit the transaction to ensure the number is updated
-        
-        return next_number
+        config = self._get_hka_configuration()
+        return config.get_and_increment_next_number()
 
     def _prepare_hka_client_data(self):
         """Prepare client data for HKA"""
@@ -719,8 +719,10 @@ class AccountMove(models.Model):
         if self.hka_status != 'sent':
             raise UserError(_('Solo se pueden recuperar documentos de facturas enviadas'))
 
+        self._get_hka_configuration()
+
         try:
-            hka_service = self.env['hka.service']
+            hka_service = self.env['hka.service'].with_company(self.company_id)
             datos_documento = {
                 'codigoSucursalEmisor': self._get_hka_branch(),
                 'tipoDocumento': self.tipo_documento,

@@ -4,6 +4,12 @@ from odoo.exceptions import ValidationError
 class ResCompany(models.Model):
     _inherit = 'res.company'
 
+    hka_configuration_id = fields.Many2one(
+        'isfehka.configuration',
+        string='HKA Configuration',
+        domain="[('active', '=', True)]",
+        help='Conjunto de credenciales HKA que utiliza la compañía.'
+    )
     hka_branch_code = fields.Char(
         string='HKA Branch Code',
         default='0000',

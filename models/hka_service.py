@@ -12,10 +12,19 @@ class HKAService(models.AbstractModel):
 
     name = fields.Char(string='Name', default='HKA Service')
 
+    def _get_configuration(self):
+        """Return the configuration set for the current company"""
+        company = self.env.company
+        config = company.hka_configuration_id
+        if not config:
+            raise UserError(_('Configure un conjunto de credenciales HKA para la compañía %s.')
+                            % company.display_name)
+        return config
+
     def get_client(self):
         """Get configured SOAP client for HKA service"""
-        ICP = self.env['ir.config_parameter'].sudo()
-        wsdl_url = ICP.get_param('isfehka.wsdl_url')
+        config = self._get_configuration()
+        wsdl_url = config.wsdl_url
         if not wsdl_url:
             raise UserError(_('WSDL URL not configured. Please configure it in Electronic Invoice settings.'))
         
@@ -27,10 +36,10 @@ class HKAService(models.AbstractModel):
 
     def get_credentials(self):
         """Get HKA credentials from settings"""
-        ICP = self.env['ir.config_parameter'].sudo()
+        config = self._get_configuration()
         return {
-            'tokenEmpresa': ICP.get_param('isfehka.token_empresa'),
-            'tokenPassword': ICP.get_param('isfehka.token_password'),
+            'tokenEmpresa': config.token_empresa,
+            'tokenPassword': config.token_password,
         }
 
     @api.model

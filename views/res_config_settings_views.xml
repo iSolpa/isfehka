@@ -22,27 +22,15 @@
                     <h2>HKA Electronic Invoicing</h2>
                     <div class="row mt16 o_settings_container">
                         <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_left_pane">
-                                <field name="isfehka_test_mode"/>
-                            </div>
                             <div class="o_setting_right_pane">
-                                <label for="isfehka_test_mode"/>
+                                <label for="isfehka_configuration_id"/>
                                 <div class="text-muted">
-                                    Usar ambiente de pruebas de HKA
+                                    Seleccione o cree un conjunto de configuración compartible entre compañías.
                                 </div>
                                 <div class="mt8">
-                                    <field name="isfehka_test_mode"/>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_right_pane">
-                                <label for="isfehka_default_tipo_documento"/>
-                                <div class="text-muted">
-                                    Tipo de documento por defecto para facturas generadas desde ventas/facturas
-                                </div>
-                                <div class="mt8">
-                                    <field name="isfehka_default_tipo_documento"/>
+                                    <field name="isfehka_configuration_id"
+                                           options="{'no_create_edit': False}"
+                                           context="{'default_test_mode': True}"/>
                                 </div>
                             </div>
                         </div>
@@ -51,9 +39,9 @@
                     <div class="row mt16 o_settings_container">
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
-                                <span class="o_form_label">HKA Credentials</span>
+                                <span class="o_form_label">Credenciales HKA</span>
                                 <div class="text-muted">
-                                    Configure credentials for HKA service
+                                    Los cambios aplican al conjunto seleccionado.
                                 </div>
                                 <div class="content-group">
                                     <div class="row mt16">
@@ -72,6 +60,20 @@
                                         <label class="col-lg-3 o_light_label" for="isfehka_next_number"/>
                                         <field name="isfehka_next_number" class="o_field_char"/>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="isfehka_test_mode"/>
+                                <div class="text-muted">
+                                    Usar ambiente de pruebas de HKA y definir valores por defecto.
+                                </div>
+                                <div class="mt8">
+                                    <field name="isfehka_test_mode"/>
+                                </div>
+                                <div class="mt8">
+                                    <field name="isfehka_default_tipo_documento"/>
                                 </div>
                             </div>
                         </div>
