@@ -152,31 +152,47 @@ class AccountMove(models.Model):
             result = hka_service.send_invoice(invoice_data)
 
             if result['success']:
-                # First save the basic response data including CAFE fields
-                self.env.cr.commit()  # Commit the transaction to ensure we don't lose the CUFE
-                
-                # Parse the ISO 8601 datetime from HKA response
-                fecha_recepcion = False
-                if result['data'].get('fechaRecepcionDGI'):
+                # CRITICAL: Save essential HKA data first - never rollback after HKA succeeds
+                try:
+                    # Write critical fields that must be saved
+                    self.write({
+                        'hka_status': 'sent',
+                        'hka_cufe': result['data'].get('cufe', ''),
+                        'hka_qr': result['data'].get('qr', ''),
+                        'hka_nro_protocolo_autorizacion': result['data'].get('nroProtocoloAutorizacion', ''),
+                        'hka_message': _('Documento enviado exitosamente'),
+                    })
+                    self.env.cr.commit()  # Commit immediately - invoice exists in DGI now
+                    _logger.info(f"CRITICAL HKA DATA SAVED for invoice {self.name} - CUFE: {result['data'].get('cufe', '')}")
+                except Exception as e:
+                    # If even this fails, log and try to save just CUFE
+                    _logger.error(f"CRITICAL: Failed to save HKA data for {self.name}: {e}")
                     try:
+                        self.write({
+                            'hka_status': 'sent',
+                            'hka_cufe': result['data'].get('cufe', ''),
+                            'hka_message': _('Documento enviado - datos parciales: %s') % str(e),
+                        })
+                        self.env.cr.commit()
+                    except:
+                        _logger.critical(f"FAILED TO SAVE CUFE for {self.name} - CUFE: {result['data'].get('cufe', '')} - MANUAL RECOVERY NEEDED")
+                
+                # Now try to save optional date field separately
+                try:
+                    fecha_recepcion = False
+                    if result['data'].get('fechaRecepcionDGI'):
                         # Parse ISO 8601 format: 2025-11-13T15:46:53-05:00
                         fecha_str = result['data']['fechaRecepcionDGI']
                         # Remove timezone info and parse
                         if 'T' in fecha_str:
                             fecha_str = fecha_str.split('-05:00')[0].split('+')[0]  # Remove timezone
                             fecha_recepcion = datetime.strptime(fecha_str, '%Y-%m-%dT%H:%M:%S')
-                    except Exception as e:
-                        _logger.warning(f"Could not parse fechaRecepcionDGI: {e}")
-                
-                self.write({
-                    'hka_status': 'sent',
-                    'hka_cufe': result['data'].get('cufe', ''),
-                    'hka_qr': result['data'].get('qr', ''),
-                    'hka_nro_protocolo_autorizacion': result['data'].get('nroProtocoloAutorizacion', ''),
-                    'hka_fecha_recepcion_dgi': fecha_recepcion,
-                    'hka_message': _('Documento enviado exitosamente'),
-                })
-                self.env.cr.commit()  # Commit the transaction to ensure we don't lose the status
+                        
+                        self.write({'hka_fecha_recepcion_dgi': fecha_recepcion})
+                        self.env.cr.commit()
+                except Exception as e:
+                    _logger.warning(f"Could not save fechaRecepcionDGI for {self.name}: {e} - Continuing with other data")
+                    # Don't fail - we already saved the critical data
 
                 try:
                     # Then handle PDF and XML files with proper filenames
