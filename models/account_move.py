@@ -21,6 +21,24 @@ class AccountMove(models.Model):
         readonly=True,
         help='Código Único de Factura Electrónica'
     )
+    
+    hka_qr = fields.Char(
+        string='QR URL',
+        readonly=True,
+        help='URL del código QR de la DGI para validación'
+    )
+    
+    hka_nro_protocolo_autorizacion = fields.Char(
+        string='Número de Protocolo de Autorización',
+        readonly=True,
+        help='Número de protocolo de autorización de DGI'
+    )
+    
+    hka_fecha_recepcion_dgi = fields.Datetime(
+        string='Fecha de Recepción DGI',
+        readonly=True,
+        help='Fecha de autorización ante la DGI'
+    )
 
     hka_pdf = fields.Binary(
         string='PDF HKA',
@@ -133,11 +151,14 @@ class AccountMove(models.Model):
             result = hka_service.send_invoice(invoice_data)
 
             if result['success']:
-                # First save the basic response data
+                # First save the basic response data including CAFE fields
                 self.env.cr.commit()  # Commit the transaction to ensure we don't lose the CUFE
                 self.write({
                     'hka_status': 'sent',
                     'hka_cufe': result['data'].get('cufe', ''),
+                    'hka_qr': result['data'].get('qr', ''),
+                    'hka_nro_protocolo_autorizacion': result['data'].get('nroProtocoloAutorizacion', ''),
+                    'hka_fecha_recepcion_dgi': result['data'].get('fechaRecepcionDGI', False),
                     'hka_message': _('Documento enviado exitosamente'),
                 })
                 self.env.cr.commit()  # Commit the transaction to ensure we don't lose the status
