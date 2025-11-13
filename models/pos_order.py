@@ -41,6 +41,11 @@ class PosOrder(models.Model):
                     })
                     # Send to HKA
                     invoice._send_to_hka()
+                    
+                    # Sync CUFE data back to POS order for CAFE display
+                    if hasattr(invoice, '_sync_cufe_to_pos_orders'):
+                        invoice._sync_cufe_to_pos_orders()
+                    
                 except Exception as e:
                     error_msg = str(e)
                     _logger.error(
