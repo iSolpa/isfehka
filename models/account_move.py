@@ -541,19 +541,27 @@ class AccountMove(models.Model):
         global_discount_lines = self.invoice_line_ids.filtered(
             lambda l: self._is_global_discount_line(l)
         )
-        # Use price_total (with tax) since totalTodosItems includes tax
-        total_global_discounts = abs(sum(
+        # For totalDescuento field: use price_subtotal (without tax) to match listaDescBonificacion
+        total_global_discounts_subtotal = abs(sum(
+            line.price_subtotal
+            for line in global_discount_lines
+        ))
+        # For totalFactura calculation: use price_total (with tax) since totalTodosItems includes tax
+        total_global_discounts_with_tax = abs(sum(
             line.price_total
             for line in global_discount_lines
         ))
 
         # Handle rounding down as a discount
-        total_discounts = total_global_discounts
+        # totalDescuento uses subtotal (for DGI reporting)
+        total_discounts = total_global_discounts_subtotal
         if rounding_amount < -0.01:  # Only add negative rounding (rounding down)
             total_discounts += abs(rounding_amount)
 
-        # Calculate totalFactura
-        total_factura = total_todos_items - total_discounts
+        # Calculate totalFactura - subtract discount WITH tax since totalTodosItems includes tax
+        total_factura = total_todos_items - total_global_discounts_with_tax
+        if rounding_amount < -0.01:
+            total_factura -= abs(rounding_amount)
 
         # Calculate number of items (including rounding line if present)
         regular_items = len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0 and not self._is_global_discount_line(l)))
