@@ -541,8 +541,9 @@ class AccountMove(models.Model):
         global_discount_lines = self.invoice_line_ids.filtered(
             lambda l: self._is_global_discount_line(l)
         )
+        # Use price_total (with tax) since totalTodosItems includes tax
         total_global_discounts = abs(sum(
-            line.price_subtotal
+            line.price_total
             for line in global_discount_lines
         ))
 
