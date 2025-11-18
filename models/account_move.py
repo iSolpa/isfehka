@@ -558,10 +558,10 @@ class AccountMove(models.Model):
         if rounding_amount < -0.01:  # Only add negative rounding (rounding down)
             total_discounts += abs(rounding_amount)
 
-        # Calculate totalFactura - subtract discount WITH tax since totalTodosItems includes tax
-        total_factura = total_todos_items - total_global_discounts_with_tax
-        if rounding_amount < -0.01:
-            total_factura -= abs(rounding_amount)
+        # Calculate totalFactura
+        # Use Odoo's amount_total to avoid rounding errors in manual calculation
+        # This ensures totalFactura matches what the customer actually pays
+        total_factura = abs(self.amount_total)
 
         # Calculate number of items (including rounding line if present)
         regular_items = len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0 and not self._is_global_discount_line(l)))
@@ -606,6 +606,11 @@ class AccountMove(models.Model):
                     'valorCuotaPagada': '{:.2f}'.format(amount)
                 })
                 total_payments += amount
+            
+            # Recalculate change based on actual payment difference
+            # Handles cases where customer overpays due to rounding
+            if total_payments > total_factura:
+                change_amount = total_payments - total_factura
 
         else:
             # For regular invoices, use a single payment method
