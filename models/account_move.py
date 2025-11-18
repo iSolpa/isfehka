@@ -553,15 +553,15 @@ class AccountMove(models.Model):
         ))
 
         # Handle rounding down as a discount
-        # totalDescuento uses subtotal (for DGI reporting)
-        total_discounts = total_global_discounts_subtotal
+        # totalDescuento must include tax to match DGI's validation formula
+        total_discounts = total_global_discounts_with_tax
         if rounding_amount < -0.01:  # Only add negative rounding (rounding down)
             total_discounts += abs(rounding_amount)
 
         # Calculate totalFactura
-        # Use Odoo's amount_total to avoid rounding errors in manual calculation
-        # This ensures totalFactura matches what the customer actually pays
-        total_factura = abs(self.amount_total)
+        # DGI validates: totalFactura = totalTodosItems - totalDescuento
+        # Must use this formula even if it differs slightly from amount_total due to rounding
+        total_factura = total_todos_items - total_discounts
 
         # Calculate number of items (including rounding line if present)
         regular_items = len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0 and not self._is_global_discount_line(l)))
@@ -643,9 +643,10 @@ class AccountMove(models.Model):
         # Add global discount lines if any
         if global_discount_lines:
             for line in global_discount_lines:
+                # Use price_total (with tax) to match totalDescuento
                 discount_bonifications.append({
                     'descDescuento': self._sanitize_hka_text(line.name),
-                    'montoDescuento': '{:.2f}'.format(abs(line.price_subtotal))
+                    'montoDescuento': '{:.2f}'.format(abs(line.price_total))
                 })
         
         # Add rounding down as a discount if significant
