@@ -70,8 +70,13 @@ class HKAService(models.AbstractModel):
             _logger.error('RUC verification error: %s', str(e))
             raise UserError(_('Error verifying RUC: %s') % str(e))
 
-    def send_invoice(self, invoice_data):
-        """Send invoice to HKA"""
+    def send_invoice(self, invoice_data, skip_documents=False):
+        """Send invoice to HKA
+        
+        Args:
+            invoice_data: Invoice data to send
+            skip_documents: If True, skip PDF/XML retrieval (for async processing)
+        """
         client = self.get_client()
         credentials = self.get_credentials()
         
@@ -91,8 +96,8 @@ class HKAService(models.AbstractModel):
             )
             result = self._process_response(response)
             
-            # If invoice was sent successfully, get XML and PDF
-            if result.get('success'):
+            # If invoice was sent successfully, get XML and PDF (unless skipped)
+            if result.get('success') and not skip_documents:
                 documento = invoice_data['documento']  # Get first level
                 datos_transaccion = documento['datosTransaccion']  # Get second level
                 

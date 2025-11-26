@@ -2,7 +2,7 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 import base64
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 _logger = logging.getLogger(__name__)
 
@@ -149,7 +149,9 @@ class AccountMove(models.Model):
         try:
             hka_service = self.env['hka.service'].with_company(self.company_id)
             invoice_data = self._prepare_hka_data()
-            result = hka_service.send_invoice(invoice_data)
+            # Skip PDF/XML downloads if this is a POS order to avoid blocking
+            skip_documents = bool(self.pos_order_ids)
+            result = hka_service.send_invoice(invoice_data, skip_documents=skip_documents)
 
             if result['success']:
                 # CRITICAL: Save essential HKA data first - never rollback after HKA succeeds
@@ -779,6 +781,35 @@ class AccountMove(models.Model):
         self.ensure_one()
         return (self.hka_status == 'sent' and 
                 (not self.hka_pdf or not self.hka_xml))
+
+    @api.model
+    def _cron_retrieve_missing_documents(self):
+        """Cron job to retrieve missing PDF/XML documents for invoices sent via POS"""
+        # Find invoices sent in the last 7 days that are missing documents
+        date_limit = fields.Datetime.now() - timedelta(days=7)
+        invoices = self.search([
+            ('hka_status', '=', 'sent'),
+            ('write_date', '>=', date_limit),
+            '|',
+            ('hka_pdf', '=', False),
+            ('hka_xml', '=', False),
+        ], limit=50)  # Process max 50 invoices per run
+        
+        if not invoices:
+            return
+            
+        _logger.info(f'[HKA CRON] Found {len(invoices)} invoices with missing documents')
+        
+        for invoice in invoices:
+            try:
+                if invoice._needs_documents():
+                    _logger.info(f'[HKA CRON] Retrieving documents for invoice {invoice.name}')
+                    invoice.action_get_documents()
+                    self.env.cr.commit()  # Commit after each invoice to avoid losing work
+            except Exception as e:
+                _logger.warning(f'[HKA CRON] Failed to retrieve documents for {invoice.name}: {e}')
+                # Continue with next invoice
+                continue
 
     def action_get_documents(self):
         """Retrieve PDF and XML documents from HKA"""

@@ -1,6 +1,6 @@
 {
     'name': 'Panama Electronic Invoicing - HKA Integration',
-    'version': '1.0.18',
+    'version': '1.0.19',
     'category': 'Accounting/Localizations',
     'summary': 'Electronic Invoicing Integration for Panama with HKA',
     'description': """
@@ -24,6 +24,7 @@
         'data/res_country_state_data.xml',
         'data/res_location_pa_data.xml',
         'data/isfehka_data.xml',
+        'data/ir_cron_data.xml',
         'wizard/account_move_cancel_reason_views.xml',
         'views/res_company_views.xml',
         'views/res_config_settings_views.xml',
