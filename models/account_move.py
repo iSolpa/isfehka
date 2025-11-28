@@ -491,15 +491,30 @@ class AccountMove(models.Model):
         }
 
     def _is_discount_line(self, line):
-        """Check if a line represents a discount (global, loyalty, or coupon)"""
+        """Check if a line represents a discount (global, loyalty, or coupon)
+        
+        Handles both invoices and credit notes:
+        - In invoices: discount lines have negative price_unit/price_subtotal
+        - In credit notes: discount lines have positive price_unit/price_subtotal (reversed sign)
+        """
         if not line.product_id:
             return False
         
-        # Check if line has negative price (loyalty/coupon discount)
-        # Loyalty programs create lines with negative price_unit and price_subtotal
-        if line.price_unit < 0 or line.price_subtotal < 0:
-            _logger.debug(f"Line {line.id} detected as loyalty/discount line (negative price: unit={line.price_unit}, subtotal={line.price_subtotal}).")
-            return True
+        # Check if line has opposite sign from document type (loyalty/coupon discount)
+        # For invoices (out_invoice): discount lines are negative
+        # For credit notes (out_refund): discount lines are positive (since everything is reversed)
+        is_refund = self.move_type == 'out_refund'
+        
+        if is_refund:
+            # In credit notes, discount lines have POSITIVE values (reversed)
+            if line.price_unit > 0 or line.price_subtotal > 0:
+                _logger.debug(f"Line {line.id} detected as loyalty/discount line in credit note (positive price: unit={line.price_unit}, subtotal={line.price_subtotal}).")
+                return True
+        else:
+            # In invoices, discount lines have NEGATIVE values
+            if line.price_unit < 0 or line.price_subtotal < 0:
+                _logger.debug(f"Line {line.id} detected as loyalty/discount line in invoice (negative price: unit={line.price_unit}, subtotal={line.price_subtotal}).")
+                return True
         
         # Check if product is marked as global discount in POS config
         if hasattr(line.product_id, 'is_global_discount') and line.product_id.is_global_discount:
