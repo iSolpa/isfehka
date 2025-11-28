@@ -67,12 +67,13 @@ class HKAService(models.AbstractModel):
         credentials = self.get_credentials()
         
         try:
-            # Log request data for debugging
-            if self.env.user.has_group('base.group_no_one'):
-                _logger.info('ISFEHKA Request Data: %s', {
-                    'tokenEmpresa': credentials['tokenEmpresa'],
-                    'documento': invoice_data
-                })
+            # Log request data for debugging (always log, but mask token for non-technical users)
+            import json
+            log_data = {
+                'tokenEmpresa': credentials['tokenEmpresa'] if self.env.user.has_group('base.group_no_one') else '***MASKED***',
+                'documento': invoice_data
+            }
+            _logger.info('ISFEHKA Request Data: %s', json.dumps(log_data, indent=2, ensure_ascii=False, default=str))
 
             # Update request structure to match WSDL exactly
             response = client.service.Enviar(
@@ -226,7 +227,22 @@ class HKAService(models.AbstractModel):
 
     def _process_response(self, response):
         """Process HKA service response"""
-        if self.env.user.has_group('base.group_no_one'):
+        import json
+        # Always log response for debugging
+        try:
+            response_dict = {
+                'codigo': getattr(response, 'codigo', None),
+                'resultado': getattr(response, 'resultado', None),
+                'mensaje': getattr(response, 'mensaje', None),
+                'cufe': getattr(response, 'cufe', None),
+                'qr': getattr(response, 'qr', None),
+                'fechaRecepcionDGI': getattr(response, 'fechaRecepcionDGI', None),
+                'nroProtocoloAutorizacion': getattr(response, 'nroProtocoloAutorizacion', None),
+                'fechaLimite': getattr(response, 'fechaLimite', None),
+            }
+            _logger.info('ISFEHKA Response: %s', json.dumps(response_dict, indent=2, ensure_ascii=False, default=str))
+        except Exception as e:
+            _logger.warning('Could not serialize response for logging: %s', e)
             _logger.info('ISFEHKA Response: %s', response)
 
         # Check if response has codigo field

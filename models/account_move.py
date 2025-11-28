@@ -340,10 +340,17 @@ class AccountMove(models.Model):
         return self.company_id.hka_pos_code
 
     def _sanitize_hka_text(self, text, max_length=50):
-        """Sanitize text for HKA integration with length enforcement"""
+        """Sanitize text for HKA integration with length enforcement and ASCII normalization"""
         import re
+        import unicodedata
         if not text:
             return 'Descuento'
+        
+        # Normalize unicode characters to ASCII (e.g., "específicos" -> "especificos")
+        # NFD = Canonical Decomposition, then filter out combining marks
+        text = unicodedata.normalize('NFD', text)
+        text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
+        
         # Remove any special characters except alphanumeric, spaces, periods, and hyphens
         sanitized = re.sub(r'[^\w\s.-]', '', text)
         # Remove square brackets and their contents
