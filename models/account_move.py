@@ -688,9 +688,16 @@ class AccountMove(models.Model):
         discount_bonifications = []
         if discount_lines:
             for line in discount_lines:
+                # Ensure we have a valid description for the discount
+                desc_text = line.name or line.product_id.name or 'Descuento'
+                sanitized_desc = self._sanitize_hka_text(desc_text, max_length=30)
+                # Ensure the description is not empty after sanitization
+                if not sanitized_desc or sanitized_desc.strip() == '':
+                    sanitized_desc = 'Descuento'
+                
                 discount_bonifications.append({
-                    'descDescuento': self._sanitize_hka_text(line.name, max_length=30),
-                    'montoDescuento': '{:.2f}'.format(abs(line.price_subtotal))
+                    'descDescuento': sanitized_desc,
+                    'montoDescuento': '{:.2f}'.format(abs(line.price_total))  # Use price_total (with tax) to match totalDescuento
                 })
         if rounding_amount < -0.01:
             discount_bonifications.append({
