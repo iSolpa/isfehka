@@ -115,10 +115,28 @@ class AccountMove(models.Model):
             if move.tipo_documento == '04' and not move.reversed_entry_id:
                 raise ValidationError(_('Debe seleccionar una factura a la cual aplicar la nota de crédito.'))
 
-    def action_post(self):
+    def _post(self, soft=True):
         """Override to send invoice to HKA when posting"""
-        res = super().action_post()
+        res = super()._post(soft)
         for move in self.filtered(lambda m: m.move_type in ('out_invoice', 'out_refund')):
+            # Ensure correct HKA document settings for POS-origin invoices before sending
+            try:
+                if hasattr(move, 'pos_order_ids') and move.pos_order_ids:
+                    pos_order = move.pos_order_ids[0]
+                    if getattr(move, 'amount_total_signed', move.amount_total) < 0:
+                        move.write({
+                            'tipo_documento': '04',
+                            'naturaleza_operacion': '04',
+                        })
+                    else:
+                        tipo = getattr(pos_order.config_id, 'hka_tipo_documento', move.tipo_documento) or move.tipo_documento
+                        nat = getattr(pos_order.config_id, 'hka_naturaleza_operacion', move.naturaleza_operacion) or move.naturaleza_operacion
+                        move.write({
+                            'tipo_documento': tipo,
+                            'naturaleza_operacion': nat,
+                        })
+            except Exception as e:
+                _logger.warning('Failed to set HKA POS fields on move %s: %s', move.name or move.id, e)
             move._send_to_hka()
         return res
 
@@ -262,6 +280,42 @@ class AccountMove(models.Model):
         except Exception as e:
             raise UserError(str(e))
 
+    def button_send_to_hka(self):
+        """Manual button to send invoice to HKA"""
+        self.ensure_one()
+        
+        # Check if invoice is posted
+        if self.state != 'posted':
+            raise UserError(_('Solo se pueden enviar facturas confirmadas a HKA'))
+        
+        # Check if already sent
+        if self.hka_status == 'sent':
+            raise UserError(_('Esta factura ya ha sido enviada a HKA'))
+        
+        try:
+            self._send_to_hka()
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Éxito'),
+                    'message': _('Factura enviada exitosamente a HKA'),
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+        except Exception as e:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Error'),
+                    'message': str(e),
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
+
     def _get_hka_branch(self):
         """Get the branch code to use for HKA integration"""
         self.ensure_one()
@@ -284,6 +338,22 @@ class AccountMove(models.Model):
         if not self.company_id.hka_pos_code:
             raise UserError(_('Please configure an HKA POS Code in company settings'))
         return self.company_id.hka_pos_code
+
+    def _sanitize_hka_text(self, text, max_length=50):
+        """Sanitize text for HKA integration with length enforcement"""
+        import re
+        if not text:
+            return 'Descuento'
+        # Remove any special characters except alphanumeric, spaces, periods, and hyphens
+        sanitized = re.sub(r'[^\w\s.-]', '', text)
+        # Remove square brackets and their contents
+        sanitized = re.sub(r'\[.*?\]', '', sanitized)
+        # Replace multiple spaces with a single space and strip
+        sanitized = ' '.join(sanitized.split())
+        # Enforce maximum length
+        sanitized = sanitized[:max_length] if sanitized else ''
+        # If empty after sanitization, return default (also enforcing max length)
+        return sanitized.strip() or 'Descuento'[:max_length]
 
     def _prepare_hka_data(self):
         """Prepare invoice data for HKA"""
@@ -323,10 +393,14 @@ class AccountMove(models.Model):
             if not self.reversed_entry_id.hka_cufe:
                 raise UserError(_('La factura referenciada debe tener un CUFE válido'))
 
+            # Use the HKA reception date (when CUFE was generated) if available to match CUFE date
+            ref_dt = self.reversed_entry_id.hka_fecha_recepcion_dgi or self.reversed_entry_id.invoice_date
+            fecha_ref_str = ref_dt.strftime('%Y-%m-%dT%H:%M:%S-05:00') if ref_dt else fields.Datetime.now().strftime('%Y-%m-%dT%H:%M:%S-05:00')
+
             data['documento']['datosTransaccion']['informacionInteres'] = 'Factura de nota de credito referenciada'
             data['documento']['datosTransaccion']['listaDocsFiscalReferenciados'] = {
                 'docFiscalReferenciado': [{
-                    'fechaEmisionDocFiscalReferenciado': self.reversed_entry_id.invoice_date.strftime('%Y-%m-%dT%H:%M:%S-05:00'),
+                    'fechaEmisionDocFiscalReferenciado': fecha_ref_str,
                     'cufeFEReferenciada': self.reversed_entry_id.hka_cufe,
                     'nroFacturaPapel': '',
                     'nroFacturaImpFiscal': '',
@@ -472,9 +546,9 @@ class AccountMove(models.Model):
                 'valorITBMS': valor_itbms_str,
             })
 
-        # Handle rounding
+        # Handle rounding (add rounding up as an extra item; rounding down is treated as discount in totals)
         rounding_amount = self.amount_total - sum(l.price_total for l in self.invoice_line_ids)
-        if abs(rounding_amount) >= 0.01:  # Only process significant rounding
+        if abs(rounding_amount) >= 0.01:
             if rounding_amount > 0:  # Rounding up - add as a line item
                 items.append({
                     'descripcion': 'Ajuste por Redondeo',
@@ -486,112 +560,83 @@ class AccountMove(models.Model):
                     'tasaITBMS': '00',  # No tax
                     'valorITBMS': '0.00',
                 })
-        
+
         return items
 
-    def _sanitize_hka_text(self, text):
-        """Sanitize text for HKA API to avoid invalid characters"""
-        import re
-        if not text:
-            return 'Descuento'
-        # Remove any special characters except alphanumeric, spaces, periods, and hyphens
-        sanitized = re.sub(r'[^\w\s.-]', '', text)
-        # Remove square brackets and their contents
-        sanitized = re.sub(r'\[.*?\]', '', sanitized)
-        # Replace multiple spaces with a single space and strip
-        sanitized = ' '.join(sanitized.split())
-        # If empty after sanitization, return default
-        return sanitized.strip() or 'Descuento'
+    def _prepare_cancel_data(self):
+        """Prepare cancellation data for HKA"""
+        return {
+            'datosDocumento': {
+                'codigoSucursalEmisor': self._get_hka_branch(),
+                'numeroDocumentoFiscal': self.numero_documento_fiscal,
+                'puntoFacturacionFiscal': self._get_hka_pos_code(),
+                'tipoDocumento': self.tipo_documento,
+                'tipoEmision': '01',
+            },
+            'motivoAnulacion': self.motivo_anulacion,
+        }
 
     def _prepare_hka_totals_data(self):
-        """Prepare totals data for HKA"""
-        # Calculate rounding amount
-        rounding_amount = self.amount_total - sum(l.price_total for l in self.invoice_line_ids)
-        has_rounding_line = rounding_amount > 0.01  # Track if we'll add a rounding line item
-        
-        # Prepare items data
+        """Compute totals, payments, and discounts for HKA payload."""
+        self.ensure_one()
+
+        # Items (already include rounding up if applicable)
         items_data = self._prepare_hka_items_data()
 
-        # Calculate totalTodosItems as the sum of 'valorTotal' from all items
-        total_todos_items = sum(
-            float(item['valorTotal']) for item in items_data
-        )
+        # Calculate aggregates
+        total_todos_items = sum(float(item['valorTotal']) for item in items_data)
+        total_precio_neto = sum(float(item['precioItem']) for item in items_data)
+        total_itbms = sum(float(item.get('valorITBMS', '0.00')) for item in items_data)
 
-        # Calculate totalPrecioNeto as the sum of 'precioItem' from all items
-        total_precio_neto = sum(
-            float(item['precioItem']) for item in items_data
-        )
+        # Calculate discounts
+        global_discount_lines = self.invoice_line_ids.filtered(lambda l: self._is_global_discount_line(l))
+        total_global_discounts = abs(sum(line.price_subtotal for line in global_discount_lines))
 
-        # Calculate totalITBMS as the sum of 'valorITBMS' from all items
-        total_itbms = sum(
-            float(item['valorITBMS']) for item in items_data
-        )
-
-        # Calculate global discounts
-        global_discount_lines = self.invoice_line_ids.filtered(
-            lambda l: self._is_global_discount_line(l)
-        )
-        total_global_discounts = abs(sum(
-            line.price_subtotal
-            for line in global_discount_lines
-        ))
-
-        # Handle rounding down as a discount
+        rounding_amount = self.amount_total - sum(l.price_total for l in self.invoice_line_ids)
         total_discounts = total_global_discounts
         if rounding_amount < -0.01:  # Only add negative rounding (rounding down)
             total_discounts += abs(rounding_amount)
 
-        # Calculate totalFactura
+        # Totals
         total_factura = total_todos_items - total_discounts
 
-        # Calculate number of items (including rounding line if present)
+        # Item count (include rounding up item if present)
+        has_rounding_line = rounding_amount > 0.01
         regular_items = len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0 and not self._is_global_discount_line(l)))
         total_items = regular_items + (1 if has_rounding_line else 0)
 
-        # Prepare payment methods data
+        # Prepare payment methods
         payment_methods = []
         total_payments = 0.0
         change_amount = 0.00
 
-        # For credit notes (refunds), handle payment differently
-        if self.tipo_documento == '04':
-            refund_amount = abs(total_factura)  # Get positive value of refund
+        if self.tipo_documento == '04':  # Credit note
+            refund_amount = abs(total_factura)
             payment_methods.append({
-                'formaPagoFact': '02',  # Use cash for refunds
+                'formaPagoFact': '02',  # Cash for refunds
                 'descFormaPago': '',
-                'valorCuotaPagada': '{:.2f}'.format(refund_amount)  # Put refund amount here
+                'valorCuotaPagada': '{:.2f}'.format(refund_amount)
             })
-            total_payments = refund_amount  # Set total payments to refund amount
-            change_amount = 0.00  # No change for refunds
-        # For POS orders, use the payment lines
+            total_payments = refund_amount
         elif hasattr(self, 'pos_order_ids') and self.pos_order_ids:
             pos_order = self.pos_order_ids[0]
-            
-            # First pass to identify change payments (negative amounts)
             change_payments = pos_order.payment_ids.filtered(lambda p: p.amount < 0)
             if change_payments:
                 change_amount = abs(sum(change_payments.mapped('amount')))
-            
-            # Second pass to add only positive payments
             for payment in pos_order.payment_ids.filtered(lambda p: p.amount > 0):
                 payment_method = payment.payment_method_id
                 amount = payment.amount
-
-                # Use configured HKA payment type or default to '99' (Other)
                 forma_pago = payment_method.hka_payment_type or '99'
-                desc_forma_pago = forma_pago == '99' and payment_method.name or ''
-
+                desc_forma_pago = (payment_method.name or '')[:20] if forma_pago == '99' else ''
                 payment_methods.append({
                     'formaPagoFact': forma_pago,
                     'descFormaPago': desc_forma_pago,
                     'valorCuotaPagada': '{:.2f}'.format(amount)
                 })
                 total_payments += amount
-
         else:
-            # For regular invoices, use a single payment method
             payment_methods.append({
-                'formaPagoFact': '02',  # Default to cash for regular invoices
+                'formaPagoFact': '02',
                 'descFormaPago': '',
                 'valorCuotaPagada': '{:.2f}'.format(total_factura)
             })
@@ -613,43 +658,25 @@ class AccountMove(models.Model):
             }
         }
 
-        # Add global discounts and rounding down to listaDescBonificacion if any exist
+        # Discount/bonification list
         discount_bonifications = []
-        
-        # Add global discount lines if any
         if global_discount_lines:
             for line in global_discount_lines:
                 discount_bonifications.append({
-                    'descDescuento': self._sanitize_hka_text(line.name),
+                    'descDescuento': self._sanitize_hka_text(line.name, max_length=30),
                     'montoDescuento': '{:.2f}'.format(abs(line.price_subtotal))
                 })
-        
-        # Add rounding down as a discount if significant
         if rounding_amount < -0.01:
             discount_bonifications.append({
                 'descDescuento': 'Ajuste por Redondeo',
                 'montoDescuento': '{:.2f}'.format(abs(rounding_amount))
             })
-        
         if discount_bonifications:
             data['listaDescBonificacion'] = {
                 'descuentoBonificacion': discount_bonifications
             }
 
         return data
-
-    def _prepare_cancel_data(self):
-        """Prepare cancellation data for HKA"""
-        return {
-            'datosDocumento': {
-                'codigoSucursalEmisor': self._get_hka_branch(),
-                'numeroDocumentoFiscal': self.numero_documento_fiscal,
-                'puntoFacturacionFiscal': self._get_hka_pos_code(),
-                'tipoDocumento': self.tipo_documento,
-                'tipoEmision': '01',
-            },
-            'motivoAnulacion': self.motivo_anulacion,
-        }
 
     def _get_tax_rate(self, line):
         """Get ITBMS tax rate for invoice line"""

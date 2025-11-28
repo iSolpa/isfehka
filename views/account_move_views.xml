@@ -8,6 +8,13 @@
         <field name="arch" type="xml">
             <!-- Add HKA buttons in header -->
             <button name="action_post" position="before">
+                <button name="button_send_to_hka" 
+                        type="object" 
+                        string="Enviar a HKA" 
+                        class="oe_highlight"
+                        invisible="state != 'posted' or hka_status not in ('draft', 'error')"
+                        data-hotkey="shift+h"
+                        groups="isfehka.group_isfehka_user"/>
                 <button name="button_cancel_hka" 
                         type="object" 
                         string="Anular en HKA" 
