@@ -483,20 +483,29 @@ class AccountMove(models.Model):
             'pais': 'PA',
         }
 
-    def _is_global_discount_line(self, line):
-        """Check if a line represents a global discount from POS"""
+    def _is_discount_line(self, line):
+        """Check if a line represents a discount (global, loyalty, or coupon)"""
         if not line.product_id:
             return False
+        
+        # Check if line has negative price (loyalty/coupon discount)
+        # Loyalty programs create lines with negative price_unit and price_subtotal
+        if line.price_unit < 0 or line.price_subtotal < 0:
+            _logger.debug(f"Line {line.id} detected as loyalty/discount line (negative price: unit={line.price_unit}, subtotal={line.price_subtotal}).")
+            return True
+        
         # Check if product is marked as global discount in POS config
         if hasattr(line.product_id, 'is_global_discount') and line.product_id.is_global_discount:
             _logger.debug(f"Line {line.id} marked as global discount via product flag.")
             return True
+        
         # Check if product is used in any POS global discount program
         if hasattr(self, 'pos_order_ids') and self.pos_order_ids:
             pos_config = self.pos_order_ids[0].config_id
             if hasattr(pos_config, 'discount_product_id') and pos_config.discount_product_id == line.product_id:
                 _logger.debug(f"Line {line.id} marked as global discount via POS config.")
                 return True
+        
         return False
 
 
@@ -506,22 +515,39 @@ class AccountMove(models.Model):
         
         # First process regular lines
         for line in self.invoice_line_ids:
-            # Skip lines with quantity 0 and global discount lines (for both invoices and credit notes)
-            if not line.quantity or self._is_global_discount_line(line):
+            # Skip lines with quantity 0 and discount lines (global, loyalty, coupon) for both invoices and credit notes
+            if not line.quantity or self._is_discount_line(line):
                 continue
 
             # Format numeric values according to HKA specifications
             cantidad = '{:.3f}'.format(line.quantity)  # N|13,3 format
-            precio_unitario = '{:.3f}'.format(line.price_unit)  # N|13,3 format
-
-            # Calculate line discount
-            precio_unitario_descuento = '0.000'
+            
+            # Determine the original price and discount amount
+            # Handle both explicit discounts (discount field) and implicit pricelist discounts
+            original_price = line.price_unit
+            discount_amount = 0.0
+            
+            # First check if there's an explicit discount percentage
             if line.discount:
+                # Explicit discount: price_unit is before discount, calculate discount amount
                 discount_amount = (line.price_unit * line.discount) / 100
-                precio_unitario_descuento = '{:.3f}'.format(discount_amount)
+                _logger.debug(f"Line {line.id} has explicit discount: {line.discount}% on {line.price_unit}")
+            elif line.product_id and line.product_id.lst_price > 0:
+                # Check for implicit pricelist discount
+                # Compare price_unit (actual selling price) with product list price
+                list_price = line.product_id.lst_price
+                if line.price_unit < list_price:
+                    # Pricelist applied a discount
+                    original_price = list_price
+                    discount_amount = list_price - line.price_unit
+                    implicit_discount_pct = (discount_amount / list_price) * 100
+                    _logger.debug(f"Line {line.id} has implicit pricelist discount: {implicit_discount_pct:.2f}% (list: {list_price}, actual: {line.price_unit})")
+            
+            precio_unitario = '{:.3f}'.format(original_price)
+            precio_unitario_descuento = '{:.3f}'.format(discount_amount)
 
             # Calculate price after discount per unit
-            price_after_discount = line.price_unit - float(precio_unitario_descuento)
+            price_after_discount = original_price - discount_amount
 
             # Calculate total price for the line (quantity × price after discount)
             precio_item = price_after_discount * line.quantity
@@ -588,12 +614,12 @@ class AccountMove(models.Model):
         total_precio_neto = sum(float(item['precioItem']) for item in items_data)
         total_itbms = sum(float(item.get('valorITBMS', '0.00')) for item in items_data)
 
-        # Calculate discounts
-        global_discount_lines = self.invoice_line_ids.filtered(lambda l: self._is_global_discount_line(l))
-        total_global_discounts = abs(sum(line.price_subtotal for line in global_discount_lines))
+        # Calculate all discounts (global, loyalty, coupon)
+        discount_lines = self.invoice_line_ids.filtered(lambda l: self._is_discount_line(l))
+        total_discounts_amount = abs(sum(line.price_subtotal for line in discount_lines))
 
         rounding_amount = self.amount_total - sum(l.price_total for l in self.invoice_line_ids)
-        total_discounts = total_global_discounts
+        total_discounts = total_discounts_amount
         if rounding_amount < -0.01:  # Only add negative rounding (rounding down)
             total_discounts += abs(rounding_amount)
 
@@ -602,7 +628,7 @@ class AccountMove(models.Model):
 
         # Item count (include rounding up item if present)
         has_rounding_line = rounding_amount > 0.01
-        regular_items = len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0 and not self._is_global_discount_line(l)))
+        regular_items = len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0 and not self._is_discount_line(l)))
         total_items = regular_items + (1 if has_rounding_line else 0)
 
         # Prepare payment methods
@@ -660,8 +686,8 @@ class AccountMove(models.Model):
 
         # Discount/bonification list
         discount_bonifications = []
-        if global_discount_lines:
-            for line in global_discount_lines:
+        if discount_lines:
+            for line in discount_lines:
                 discount_bonifications.append({
                     'descDescuento': self._sanitize_hka_text(line.name, max_length=30),
                     'montoDescuento': '{:.2f}'.format(abs(line.price_subtotal))
