@@ -493,28 +493,11 @@ class AccountMove(models.Model):
     def _is_discount_line(self, line):
         """Check if a line represents a discount (global, loyalty, or coupon)
         
-        Handles both invoices and credit notes:
-        - In invoices: discount lines have negative price_unit/price_subtotal
-        - In credit notes: discount lines have positive price_unit/price_subtotal (reversed sign)
+        For regular invoices, discount lines have negative prices.
+        For credit notes, we only check for explicitly marked discount products (not price sign).
         """
         if not line.product_id:
             return False
-        
-        # Check if line has opposite sign from document type (loyalty/coupon discount)
-        # For invoices (out_invoice): discount lines are negative
-        # For credit notes (out_refund): discount lines are positive (since everything is reversed)
-        is_refund = self.move_type == 'out_refund'
-        
-        if is_refund:
-            # In credit notes, discount lines have POSITIVE values (reversed)
-            if line.price_unit > 0 or line.price_subtotal > 0:
-                _logger.debug(f"Line {line.id} detected as loyalty/discount line in credit note (positive price: unit={line.price_unit}, subtotal={line.price_subtotal}).")
-                return True
-        else:
-            # In invoices, discount lines have NEGATIVE values
-            if line.price_unit < 0 or line.price_subtotal < 0:
-                _logger.debug(f"Line {line.id} detected as loyalty/discount line in invoice (negative price: unit={line.price_unit}, subtotal={line.price_subtotal}).")
-                return True
         
         # Check if product is marked as global discount in POS config
         if hasattr(line.product_id, 'is_global_discount') and line.product_id.is_global_discount:
@@ -526,6 +509,13 @@ class AccountMove(models.Model):
             pos_config = self.pos_order_ids[0].config_id
             if hasattr(pos_config, 'discount_product_id') and pos_config.discount_product_id == line.product_id:
                 _logger.debug(f"Line {line.id} marked as global discount via POS config.")
+                return True
+        
+        # For regular invoices only: check if line has negative price (loyalty/coupon discount)
+        # Do NOT use this logic for credit notes as all lines are positive in refunds
+        if self.move_type == 'out_invoice':
+            if line.price_unit < 0 or line.price_subtotal < 0:
+                _logger.debug(f"Line {line.id} detected as loyalty/discount line (negative price: unit={line.price_unit}, subtotal={line.price_subtotal}).")
                 return True
         
         return False
