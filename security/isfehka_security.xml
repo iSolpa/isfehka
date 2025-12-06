@@ -1,21 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Module Category -->
     <record id="module_category_isfehka" model="ir.module.category">
         <field name="name">Facturación Electrónica</field>
         <field name="description">Permisos para facturación electrónica HKA</field>
         <field name="sequence">20</field>
     </record>
 
+    <!-- Privilege linking category to groups (Odoo 19 requirement) -->
+    <record id="privilege_isfehka" model="res.groups.privilege">
+        <field name="name">Facturación Electrónica HKA</field>
+        <field name="sequence">10</field>
+        <field name="category_id" ref="module_category_isfehka"/>
+    </record>
+
     <record id="group_isfehka_user" model="res.groups">
         <field name="name">Usuario</field>
-        <field name="category_id" ref="module_category_isfehka"/>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="privilege_isfehka"/>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
     </record>
 
     <record id="group_isfehka_manager" model="res.groups">
         <field name="name">Administrador</field>
-        <field name="category_id" ref="module_category_isfehka"/>
+        <field name="sequence">20</field>
+        <field name="privilege_id" ref="privilege_isfehka"/>
         <field name="implied_ids" eval="[(4, ref('group_isfehka_user'))]"/>
-        <field name="users" eval="[(4, ref('base.user_admin'))]"/>
+        <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
     </record>
 </odoo> 

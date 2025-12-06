@@ -896,7 +896,6 @@ class AccountMove(models.Model):
                 }
             }
 
-    @api.returns('self')
     def _reverse_moves(self, default_values_list=None, cancel=False):
         """Override to handle HKA fields when creating credit notes"""
         if not default_values_list:

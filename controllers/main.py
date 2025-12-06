@@ -6,7 +6,7 @@ import base64
 _logger = logging.getLogger(__name__)
 
 class PosHkaController(http.Controller):
-    @http.route('/pos/get_order_invoice', type='json', auth='user')
+    @http.route('/pos/get_order_invoice', type='jsonrpc', auth='user')
     def get_order_invoice(self, pos_reference):
         _logger.info('[HKA Debug] Getting invoice for POS reference: %s', pos_reference)
         try:
@@ -31,7 +31,7 @@ class PosHkaController(http.Controller):
             _logger.error('[HKA Debug] Error in get_order_invoice: %s', str(e))
             return {'error': str(e)}
 
-    @http.route('/pos/get_hka_pdf', type='json', auth='user')
+    @http.route('/pos/get_hka_pdf', type='jsonrpc', auth='user')
     def get_hka_pdf(self, invoice_id):
         _logger.info('[HKA Debug] Getting HKA PDF for invoice: %s', invoice_id)
         try:

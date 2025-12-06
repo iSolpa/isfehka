@@ -6,7 +6,7 @@
         <field name="type">ir.actions.act_window</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
+        <field name="target">main</field>
         <field name="context">{'module': 'isfehka'}</field>
     </record>
 

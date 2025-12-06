@@ -46,7 +46,7 @@ class PosSession(models.Model):
         _logger.info("[ISFEHKA] get_pos_ui_res_partner_by_params params: %s", params)
         fields_to_read = [
             'name', 'street', 'city', 'state_id', 'country_id', 'vat', 'lang',
-            'phone', 'zip', 'mobile', 'email', 'barcode', 'write_date',
+            'phone', 'zip', 'email', 'barcode', 'write_date',
             'property_account_position_id', 'property_product_pricelist', 'parent_name',
             'ruc', 'dv', 'tipo_contribuyente', 'tipo_cliente_fe',
             'l10n_pa_distrito_id', 'l10n_pa_corregimiento_id',
