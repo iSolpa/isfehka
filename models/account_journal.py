@@ -1,8 +1,8 @@
 from odoo import models, fields, _
 
 
-class AccountJournal(models.Model):
-    _inherit = 'account.journal'
+class AccountPaymentMethodLine(models.Model):
+    _inherit = 'account.payment.method.line'
 
     hka_payment_type = fields.Selection([
         ('01', 'Crédito'),
@@ -16,5 +16,5 @@ class AccountJournal(models.Model):
         ('09', 'Cheque'),
         ('99', 'Otro')
     ], string='HKA Payment Type', 
-       help='Map this journal to HKA payment type for electronic invoicing. '
+       help='Map this payment method to HKA payment type for electronic invoicing. '
             'This is used when registering payments on invoices from sales orders.')

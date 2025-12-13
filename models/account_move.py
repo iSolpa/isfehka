@@ -677,7 +677,6 @@ class AccountMove(models.Model):
             registered_payments = self._get_reconciled_payments()
             if registered_payments:
                 for payment in registered_payments:
-                    journal = payment.journal_id
                     amount = payment.amount
                     # Check for payment provider's hka_payment_type first (ecommerce payments)
                     forma_pago = None
@@ -685,10 +684,14 @@ class AccountMove(models.Model):
                         provider = payment.payment_transaction_id.provider_id
                         if provider and hasattr(provider, 'hka_payment_type'):
                             forma_pago = provider.hka_payment_type
-                    # Fall back to journal's hka_payment_type
+                    # Fall back to payment method line's hka_payment_type
+                    if not forma_pago and hasattr(payment, 'payment_method_line_id') and payment.payment_method_line_id:
+                        forma_pago = getattr(payment.payment_method_line_id, 'hka_payment_type', None)
+                    # Default to '99' (Other) if not configured
                     if not forma_pago:
-                        forma_pago = getattr(journal, 'hka_payment_type', None) or '99'
-                    desc_forma_pago = (journal.name or '')[:20] if forma_pago == '99' else ''
+                        forma_pago = '99'
+                    payment_method_name = payment.payment_method_line_id.name if payment.payment_method_line_id else payment.journal_id.name
+                    desc_forma_pago = (payment_method_name or '')[:20] if forma_pago == '99' else ''
                     payment_methods.append({
                         'formaPagoFact': forma_pago,
                         'descFormaPago': desc_forma_pago,
