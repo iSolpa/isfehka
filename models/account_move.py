@@ -673,12 +673,45 @@ class AccountMove(models.Model):
                 })
                 total_payments += amount
         else:
-            payment_methods.append({
-                'formaPagoFact': '02',
-                'descFormaPago': '',
-                'valorCuotaPagada': '{:.2f}'.format(total_factura)
-            })
-            total_payments = total_factura
+            # Check for registered payments on the invoice (from sales orders, etc.)
+            registered_payments = self._get_reconciled_payments()
+            if registered_payments:
+                for payment in registered_payments:
+                    journal = payment.journal_id
+                    amount = payment.amount
+                    # Check for payment provider's hka_payment_type first (ecommerce payments)
+                    forma_pago = None
+                    if hasattr(payment, 'payment_transaction_id') and payment.payment_transaction_id:
+                        provider = payment.payment_transaction_id.provider_id
+                        if provider and hasattr(provider, 'hka_payment_type'):
+                            forma_pago = provider.hka_payment_type
+                    # Fall back to journal's hka_payment_type
+                    if not forma_pago:
+                        forma_pago = getattr(journal, 'hka_payment_type', None) or '99'
+                    desc_forma_pago = (journal.name or '')[:20] if forma_pago == '99' else ''
+                    payment_methods.append({
+                        'formaPagoFact': forma_pago,
+                        'descFormaPago': desc_forma_pago,
+                        'valorCuotaPagada': '{:.2f}'.format(amount)
+                    })
+                    total_payments += amount
+                # If payments don't cover full amount, add remaining as credit
+                remaining = total_factura - total_payments
+                if remaining > 0.01:
+                    payment_methods.append({
+                        'formaPagoFact': '01',  # Credit for unpaid portion
+                        'descFormaPago': '',
+                        'valorCuotaPagada': '{:.2f}'.format(remaining)
+                    })
+                    total_payments = total_factura
+            else:
+                # No payments registered - default to credit (unpaid invoice)
+                payment_methods.append({
+                    'formaPagoFact': '01',  # Credit - invoice not yet paid
+                    'descFormaPago': '',
+                    'valorCuotaPagada': '{:.2f}'.format(total_factura)
+                })
+                total_payments = total_factura
 
         data = {
             'totalPrecioNeto': '{:.2f}'.format(total_precio_neto),

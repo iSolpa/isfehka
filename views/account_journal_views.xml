@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="account_journal_view_form_inherit_isfehka" model="ir.ui.view">
+        <field name="name">account.journal.form.inherit.isfehka</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.view_account_journal_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='currency_id']" position="after">
+                <field name="hka_payment_type" string="HKA Payment Type" 
+                       invisible="type not in ('bank', 'cash')"
+                       help="Map this journal to HKA payment type for electronic invoicing"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

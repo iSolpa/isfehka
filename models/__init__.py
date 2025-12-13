@@ -4,6 +4,8 @@ from . import res_location_pa
 from . import res_partner
 from . import hka_service
 from . import account_move
+from . import account_journal
+from . import payment_provider
 from . import pos_config
 from . import pos_session
 from . import pos_order
