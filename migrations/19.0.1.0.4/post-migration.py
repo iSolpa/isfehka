@@ -1,12 +1,17 @@
-from odoo import tools
-
-
 def migrate(cr, version):
     """
     Add hka_payment_type column to account_payment_method_line table if it doesn't exist.
     This migration ensures the field is properly created in Odoo 19.
     """
-    if tools.column_exists(cr, 'account_payment_method_line', 'hka_payment_type'):
+    # Check if the column already exists using SQL query
+    cr.execute("""
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'account_payment_method_line' 
+        AND column_name = 'hka_payment_type';
+    """)
+    
+    if cr.fetchone():
         return
     
     # Execute the SQL script to add the column
