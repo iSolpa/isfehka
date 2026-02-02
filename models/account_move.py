@@ -363,6 +363,29 @@ class AccountMove(models.Model):
         # If empty after sanitization, return default (also enforcing max length)
         return sanitized.strip() or 'Descuento'[:max_length]
 
+    def _get_panama_datetime_str(self, dt=None):
+        """Convert datetime to Panama timezone and format for HKA.
+        
+        Args:
+            dt: datetime to convert. If None, uses current time.
+                If naive (no tzinfo), assumes UTC.
+        
+        Returns:
+            str: Formatted datetime string like '2026-01-13T02:45:51-05:00'
+        """
+        panama_tz = pytz.timezone('America/Panama')
+        if dt is None:
+            # Get current UTC time
+            dt = datetime.utcnow()
+        
+        # Ensure datetime is timezone-aware (assume UTC if naive)
+        if dt.tzinfo is None:
+            dt = pytz.utc.localize(dt)
+        
+        # Convert to Panama timezone
+        dt_panama = dt.astimezone(panama_tz)
+        return dt_panama.strftime('%Y-%m-%dT%H:%M:%S-05:00')
+
     def _prepare_hka_data(self):
         """Prepare invoice data for HKA"""
         self.ensure_one()
@@ -385,8 +408,8 @@ class AccountMove(models.Model):
                     'envioContenedor': '1',
                     'procesoGeneracion': '1',
                     'tipoVenta': '',
-                    'fechaEmision': fields.Datetime.now().strftime('%Y-%m-%dT%H:%M:%S-05:00'),
-                    'fechaSalida': fields.Datetime.now().strftime('%Y-%m-%dT%H:%M:%S-05:00'),
+                    'fechaEmision': self._get_panama_datetime_str(),
+                    'fechaSalida': self._get_panama_datetime_str(),
                     'cliente': self._prepare_hka_client_data(),
                 },
                 'listaItems': {
