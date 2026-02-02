@@ -425,22 +425,18 @@ class AccountMove(models.Model):
                 raise UserError(_('La factura referenciada debe tener un CUFE válido'))
 
             # Use the HKA reception date (when CUFE was generated) if available to match CUFE date
-            # Must convert from UTC to Panama timezone to match the date in the CUFE
-            panama_tz = pytz.timezone('America/Panama')
+            # NOTE: hka_fecha_recepcion_dgi is stored as Panama time (not UTC) due to how HKA response is parsed
+            # So we DON'T convert - just format directly with the Panama timezone offset
             ref_dt = self.reversed_entry_id.hka_fecha_recepcion_dgi or self.reversed_entry_id.invoice_date
             if ref_dt:
-                # If it's a datetime, convert from UTC to Panama timezone
                 if isinstance(ref_dt, datetime):
-                    ref_dt_utc = pytz.utc.localize(ref_dt) if ref_dt.tzinfo is None else ref_dt
-                    ref_dt_local = ref_dt_utc.astimezone(panama_tz)
-                    fecha_ref_str = ref_dt_local.strftime('%Y-%m-%dT%H:%M:%S-05:00')
+                    # hka_fecha_recepcion_dgi is already in Panama time, just format with offset
+                    fecha_ref_str = ref_dt.strftime('%Y-%m-%dT%H:%M:%S-05:00')
                 else:
                     # It's a date (invoice_date), format as midnight Panama time
                     fecha_ref_str = ref_dt.strftime('%Y-%m-%dT00:00:00-05:00')
             else:
-                now_utc = pytz.utc.localize(datetime.utcnow())
-                now_local = now_utc.astimezone(panama_tz)
-                fecha_ref_str = now_local.strftime('%Y-%m-%dT%H:%M:%S-05:00')
+                fecha_ref_str = self._get_panama_datetime_str()
 
             data['documento']['datosTransaccion']['informacionInteres'] = 'Factura de nota de credito referenciada'
             data['documento']['datosTransaccion']['listaDocsFiscalReferenciados'] = {
