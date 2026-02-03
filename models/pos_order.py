@@ -10,9 +10,13 @@ class PosOrder(models.Model):
     def _generate_pos_order_invoice(self):
         """Override to handle HKA integration when creating invoices from POS orders"""
         # Validate no mixed refund/sale lines when creating invoice
+        # Skip discount lines (negative price_unit) as they don't count as sales/returns
         has_positive = False
         has_negative = False
         for line in self.lines:
+            # Skip discount lines - they have positive qty but negative price
+            if line.price_unit < 0:
+                continue
             if line.qty > 0:
                 has_positive = True
             if line.qty < 0:

@@ -425,13 +425,15 @@ class AccountMove(models.Model):
                 raise UserError(_('La factura referenciada debe tener un CUFE válido'))
 
             # Use the HKA reception date (when CUFE was generated) if available to match CUFE date
-            # NOTE: hka_fecha_recepcion_dgi is stored with a 5-hour offset issue, so we add 5 hours to correct it
+            # NOTE: After migration 19.0.1.0.7, hka_fecha_recepcion_dgi is stored correctly in UTC
+            # We convert from UTC to Panama time for the API
             ref_dt = self.reversed_entry_id.hka_fecha_recepcion_dgi or self.reversed_entry_id.invoice_date
             if ref_dt:
                 if isinstance(ref_dt, datetime):
-                    # Add 5 hours to correct the stored datetime offset
-                    ref_dt_corrected = ref_dt + timedelta(hours=5)
-                    fecha_ref_str = ref_dt_corrected.strftime('%Y-%m-%dT%H:%M:%S-05:00')
+                    # Convert from UTC to Panama time (add 5 hours to display as Panama local time)
+                    # This is because Odoo stores naive datetime as UTC, and Panama is UTC-5
+                    ref_dt_panama = ref_dt - timedelta(hours=5)
+                    fecha_ref_str = ref_dt_panama.strftime('%Y-%m-%dT%H:%M:%S-05:00')
                 else:
                     # It's a date (invoice_date), format as midnight Panama time
                     fecha_ref_str = ref_dt.strftime('%Y-%m-%dT00:00:00-05:00')
