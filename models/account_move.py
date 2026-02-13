@@ -88,7 +88,7 @@ class AccountMove(models.Model):
         ('07', 'Nota de Débito Genérica'),
         ('08', 'Factura de Zona Franca'),
         ('09', 'Factura de Reembolso')
-    ], string='Tipo de Documento', required=True,
+    ], string='Tipo de Documento',
        default=lambda self: self.env['ir.config_parameter'].sudo().get_param('isfehka.default_tipo_documento', '01'))
 
     naturaleza_operacion = fields.Selection([
@@ -103,43 +103,14 @@ class AccountMove(models.Model):
         help='Razón por la cual se anula el documento'
     )
 
-    @api.constrains('partner_id')
-    def _check_partner_ruc(self):
-        for move in self:
-            if move.move_type in ('out_invoice', 'out_refund'):
-                if not move.partner_id.ruc_verified:
-                    raise ValidationError(_('El RUC del cliente debe estar verificado antes de crear una factura electrónica.'))
-
-    @api.constrains('tipo_documento', 'reversed_entry_id')
-    def _check_credit_note_reference(self):
-        for move in self:
-            if move.tipo_documento == '04' and not move.reversed_entry_id:
-                raise ValidationError(_('Debe seleccionar una factura a la cual aplicar la nota de crédito.'))
-
     def _post(self, soft=True):
-        """Override to send invoice to HKA when posting"""
-        res = super()._post(soft)
-        for move in self.filtered(lambda m: m.move_type in ('out_invoice', 'out_refund')):
-            # Ensure correct HKA document settings for POS-origin invoices before sending
-            try:
-                if hasattr(move, 'pos_order_ids') and move.pos_order_ids:
-                    pos_order = move.pos_order_ids[0]
-                    if getattr(move, 'amount_total_signed', move.amount_total) < 0:
-                        move.write({
-                            'tipo_documento': '04',
-                            'naturaleza_operacion': '04',
-                        })
-                    else:
-                        tipo = getattr(pos_order.config_id, 'hka_tipo_documento', move.tipo_documento) or move.tipo_documento
-                        nat = getattr(pos_order.config_id, 'hka_naturaleza_operacion', move.naturaleza_operacion) or move.naturaleza_operacion
-                        move.write({
-                            'tipo_documento': tipo,
-                            'naturaleza_operacion': nat,
-                        })
-            except Exception as e:
-                _logger.warning('Failed to set HKA POS fields on move %s: %s', move.name or move.id, e)
-            move._send_to_hka()
-        return res
+        """Override _post — do NOT auto-send to HKA.
+        
+        HKA submission is handled explicitly:
+        - POS invoices: via pos_order._generate_pos_order_invoice()
+        - Other invoices: via the manual 'Enviar a HKA' button
+        """
+        return super()._post(soft)
 
     def _send_to_hka(self):
         """Send invoice to HKA"""
@@ -831,6 +802,20 @@ class AccountMove(models.Model):
         self.ensure_one()
         partner = self.partner_id
         errors = []
+
+        # Validate move type
+        if self.move_type not in ('out_invoice', 'out_refund'):
+            raise ValidationError(_('Solo se pueden enviar facturas de cliente y notas de crédito a HKA.'))
+
+        # Validate HKA document fields
+        if not self.tipo_documento:
+            errors.append(_('El tipo de documento es requerido para enviar a HKA.'))
+        if not self.naturaleza_operacion:
+            errors.append(_('La naturaleza de operación es requerida para enviar a HKA.'))
+
+        # Validate partner RUC is verified
+        if not partner.ruc_verified:
+            errors.append(_('El RUC del cliente debe estar verificado antes de enviar a HKA.'))
 
         # Validate credit note specific data
         if self.tipo_documento == '04':
