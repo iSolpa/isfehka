@@ -22,20 +22,11 @@ class ResConfigSettings(models.TransientModel):
         config_parameter='isfehka.test_mode'
     )
     
-    isfehka_default_tipo_documento = fields.Selection([
-        ('01', 'Factura de Operación Interna'),
-        ('02', 'Factura de Importación'),
-        ('03', 'Factura de Exportación'),
-        ('04', 'Nota de Crédito'),
-        ('05', 'Nota de Débito'),
-        ('06', 'Nota de Crédito Genérica'),
-        ('07', 'Nota de Débito Genérica'),
-        ('08', 'Factura de Zona Franca'),
-        ('09', 'Factura de Reembolso')
-    ], string='Tipo de Documento por Defecto',
-       config_parameter='isfehka.default_tipo_documento',
-       default='01',
-       help='Tipo de documento por defecto para facturas generadas desde ventas/facturas')
+    isfehka_default_tipo_documento = fields.Selection(
+        related='company_id.hka_default_tipo_documento',
+        string='Tipo de Documento por Defecto',
+        readonly=False,
+        help='Tipo de documento por defecto para facturas electrónicas de esta compañía')
     
     isfehka_next_number = fields.Char(
         string='Próximo Número Fiscal HKA',
@@ -69,7 +60,6 @@ class ResConfigSettings(models.TransientModel):
             isfehka_token_password=ICP.get_param('isfehka.token_password'),
             isfehka_wsdl_url=ICP.get_param('isfehka.wsdl_url'),
             isfehka_test_mode=ICP.get_param('isfehka.test_mode', 'False').lower() == 'true',
-            isfehka_default_tipo_documento=ICP.get_param('isfehka.default_tipo_documento', '01'),
             isfehka_next_number=ICP.get_param('isfehka.next_number', '0000000001'),
         )
         return res
@@ -81,5 +71,4 @@ class ResConfigSettings(models.TransientModel):
         ICP.set_param('isfehka.token_password', self.isfehka_token_password)
         ICP.set_param('isfehka.wsdl_url', self.isfehka_wsdl_url)
         ICP.set_param('isfehka.test_mode', str(self.isfehka_test_mode)) 
-        ICP.set_param('isfehka.default_tipo_documento', self.isfehka_default_tipo_documento)
         ICP.set_param('isfehka.next_number', self.isfehka_next_number)

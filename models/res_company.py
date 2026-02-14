@@ -18,6 +18,21 @@ class ResCompany(models.Model):
         help='Default Point of Sale code for HKA integration (up to 10 digits). Used when POS module is not installed.'
     )
 
+    hka_default_tipo_documento = fields.Selection([
+        ('01', 'Factura de Operación Interna'),
+        ('02', 'Factura de Importación'),
+        ('03', 'Factura de Exportación'),
+        ('04', 'Nota de Crédito'),
+        ('05', 'Nota de Débito'),
+        ('06', 'Nota de Crédito Genérica'),
+        ('07', 'Nota de Débito Genérica'),
+        ('08', 'Factura de Zona Franca'),
+        ('09', 'Factura de Reembolso')
+    ], string='Tipo de Documento por Defecto',
+       default='01',
+       help='Tipo de documento por defecto para facturas electrónicas de esta compañía'
+    )
+
     @api.constrains('hka_branch_code', 'hka_pos_code')
     def _check_hka_codes(self):
         for company in self:

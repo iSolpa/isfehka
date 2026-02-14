@@ -78,6 +78,22 @@ class AccountMove(models.Model):
         readonly=True
     )
 
+    @api.model
+    def _default_tipo_documento(self):
+        move_type = self.env.context.get('default_move_type', 'entry')
+        if move_type not in ('out_invoice', 'out_refund'):
+            return False
+        company_id = self.env.context.get('default_company_id') or self.env.company.id
+        company = self.env['res.company'].browse(company_id)
+        return company.hka_default_tipo_documento or '01'
+
+    @api.model
+    def _default_naturaleza_operacion(self):
+        move_type = self.env.context.get('default_move_type', 'entry')
+        if move_type not in ('out_invoice', 'out_refund'):
+            return False
+        return '01'
+
     tipo_documento = fields.Selection([
         ('01', 'Factura de Operación Interna'),
         ('02', 'Factura de Importación'),
@@ -89,14 +105,15 @@ class AccountMove(models.Model):
         ('08', 'Factura de Zona Franca'),
         ('09', 'Factura de Reembolso')
     ], string='Tipo de Documento',
-       default=lambda self: self.env['ir.config_parameter'].sudo().get_param('isfehka.default_tipo_documento', '01'))
+       default=lambda self: self._default_tipo_documento())
 
     naturaleza_operacion = fields.Selection([
         ('01', 'Venta'),
         ('02', 'Exportación'),
         ('03', 'Transferencia'),
         ('04', 'Devolución')
-    ], string='Naturaleza de Operación', default='01')
+    ], string='Naturaleza de Operación',
+       default=lambda self: self._default_naturaleza_operacion())
 
     motivo_anulacion = fields.Text(
         string='Motivo de Anulación',
