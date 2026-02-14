@@ -6,3 +6,4 @@ access_res_corregimiento_pa_user,res.corregimiento.pa.user,isfehka.model_res_cor
 access_res_distrito_pa_manager,res.distrito.pa.manager,isfehka.model_res_distrito_pa,base.group_system,1,1,1,1
 access_res_corregimiento_pa_manager,res.corregimiento.pa.manager,isfehka.model_res_corregimiento_pa,base.group_system,1,1,1,1
 access_account_move_cancel_reason_user,account.move.cancel.reason.user,model_account_move_cancel_reason,isfehka.group_isfehka_user,1,1,1,0
+access_account_move_register_hka_manager,account.move.register.hka.manager,model_account_move_register_hka,isfehka.group_isfehka_manager,1,1,1,0

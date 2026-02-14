@@ -269,6 +269,22 @@ class AccountMove(models.Model):
         except Exception as e:
             raise UserError(str(e))
 
+    def button_register_hka_document(self):
+        """Open wizard to register an existing HKA document without re-sending"""
+        self.ensure_one()
+        if self.state != 'posted':
+            raise UserError(_('La factura debe estar confirmada antes de registrar el documento HKA.'))
+        if self.hka_status == 'sent':
+            raise UserError(_('Esta factura ya está registrada como enviada a HKA.'))
+        return {
+            'name': _('Registrar Documento Fiscal'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move.register.hka',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_move_id': self.id},
+        }
+
     def button_send_to_hka(self):
         """Manual button to send invoice to HKA"""
         self.ensure_one()

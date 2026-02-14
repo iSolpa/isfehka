@@ -29,6 +29,12 @@
                         invisible="move_type not in ('out_invoice', 'out_refund') or hka_status != 'sent' or (hka_pdf and hka_xml)"
                         data-hotkey="shift+d"
                         groups="isfehka.group_isfehka_user"/>
+                <button name="button_register_hka_document" 
+                        type="object" 
+                        string="Registrar Documento Fiscal" 
+                        invisible="move_type not in ('out_invoice', 'out_refund') or state != 'posted' or hka_status not in ('draft', 'error')"
+                        data-hotkey="shift+r"
+                        groups="isfehka.group_isfehka_manager"/>
             </button>
 
             <!-- Add HKA fields in form -->

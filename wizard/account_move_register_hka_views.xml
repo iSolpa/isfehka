@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_account_move_register_hka_form" model="ir.ui.view">
+        <field name="name">account.move.register.hka.form</field>
+        <field name="model">account.move.register.hka</field>
+        <field name="arch" type="xml">
+            <form string="Registrar Documento Fiscal Existente">
+                <div class="alert alert-info" role="alert">
+                    Use este asistente para registrar en Odoo una factura que ya fue enviada a HKA
+                    por otro medio. Esto marcará la factura como enviada sin volver a enviarla.
+                </div>
+                <group>
+                    <field name="move_id" invisible="1"/>
+                    <field name="tipo_documento"/>
+                    <field name="naturaleza_operacion"/>
+                    <field name="numero_documento_fiscal" required="1"/>
+                    <field name="hka_cufe" required="1"/>
+                </group>
+                <footer>
+                    <button name="action_confirm_register" 
+                            string="Registrar" 
+                            type="object" 
+                            class="btn-primary" 
+                            data-hotkey="q"/>
+                    <button string="Cancelar" 
+                            class="btn-secondary" 
+                            special="cancel" 
+                            data-hotkey="z"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_account_move_register_hka" model="ir.actions.act_window">
+        <field name="name">Registrar Documento Fiscal</field>
+        <field name="res_model">account.move.register.hka</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_view_types">form</field>
+    </record>
+</odoo>
