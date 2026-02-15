@@ -121,13 +121,34 @@ class AccountMove(models.Model):
     )
 
     def _post(self, soft=True):
-        """Override _post — do NOT auto-send to HKA.
+        """Override _post to optionally auto-send customer invoices to HKA.
         
-        HKA submission is handled explicitly:
-        - POS invoices: via pos_order._generate_pos_order_invoice()
-        - Other invoices: via the manual 'Enviar a HKA' button
+        When hka_auto_send_on_post is enabled on the company, customer invoices
+        are automatically sent to HKA after posting. This is required for
+        subscriptions and other automated invoicing flows.
+        
+        POS invoices are skipped here — they are handled explicitly via
+        pos_order._generate_pos_order_invoice().
         """
-        return super()._post(soft)
+        res = super()._post(soft)
+        for move in res.filtered(
+            lambda m: m.move_type in ('out_invoice', 'out_refund')
+            and m.hka_status != 'sent'
+            and m.company_id.hka_auto_send_on_post
+            and m.tipo_documento
+        ):
+            # Skip POS-originated invoices — they handle HKA sending explicitly
+            if hasattr(move, 'pos_order_ids') and move.pos_order_ids:
+                continue
+            try:
+                move._send_to_hka()
+            except Exception as e:
+                _logger.warning('Auto-send to HKA failed for %s: %s', move.name or move.id, e)
+                move.write({
+                    'hka_status': 'error',
+                    'hka_message': str(e),
+                })
+        return res
 
     def _send_to_hka(self):
         """Send invoice to HKA"""

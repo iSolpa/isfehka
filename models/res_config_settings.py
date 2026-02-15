@@ -22,6 +22,12 @@ class ResConfigSettings(models.TransientModel):
         config_parameter='isfehka.test_mode'
     )
     
+    isfehka_auto_send_on_post = fields.Boolean(
+        related='company_id.hka_auto_send_on_post',
+        string='Enviar a HKA al Confirmar',
+        readonly=False,
+        help='Enviar automáticamente facturas de cliente a HKA al confirmarlas.')
+
     isfehka_default_tipo_documento = fields.Selection(
         related='company_id.hka_default_tipo_documento',
         string='Tipo de Documento por Defecto',

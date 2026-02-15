@@ -11,6 +11,7 @@
                             <field name="hka_branch_code"/>
                             <field name="hka_pos_code"/>
                             <field name="hka_default_tipo_documento"/>
+                            <field name="hka_auto_send_on_post"/>
                         </group>
                     </page>
             </xpath>

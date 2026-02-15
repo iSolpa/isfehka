@@ -18,6 +18,14 @@ class ResCompany(models.Model):
         help='Default Point of Sale code for HKA integration (up to 10 digits). Used when POS module is not installed.'
     )
 
+    hka_auto_send_on_post = fields.Boolean(
+        string='Enviar a HKA al Confirmar',
+        default=True,
+        help='Enviar automáticamente facturas de cliente a HKA al confirmarlas. '
+             'Necesario para suscripciones y facturación automática. '
+             'Si se desactiva, el envío será manual mediante el botón "Enviar a HKA".'
+    )
+
     hka_default_tipo_documento = fields.Selection([
         ('01', 'Factura de Operación Interna'),
         ('02', 'Factura de Importación'),
