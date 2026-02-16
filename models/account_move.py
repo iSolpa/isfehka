@@ -124,11 +124,10 @@ class AccountMove(models.Model):
         """Override _post to optionally auto-send customer invoices to HKA.
         
         When hka_auto_send_on_post is enabled on the company, customer invoices
-        are automatically sent to HKA after posting. This is required for
-        subscriptions and other automated invoicing flows.
-        
-        POS invoices are skipped here — they are handled explicitly via
-        pos_order._generate_pos_order_invoice().
+        are automatically sent to HKA after posting. This covers:
+        - POS invoices (tipo_documento/naturaleza set from POS config)
+        - Subscription renewals
+        - Any other automated invoicing flow
         """
         res = super()._post(soft)
         for move in res.filtered(
@@ -137,9 +136,21 @@ class AccountMove(models.Model):
             and m.company_id.hka_auto_send_on_post
             and m.tipo_documento
         ):
-            # Skip POS-originated invoices — they handle HKA sending explicitly
+            # For POS invoices, apply tipo_documento/naturaleza from POS config
             if hasattr(move, 'pos_order_ids') and move.pos_order_ids:
-                continue
+                pos_order = move.pos_order_ids[0]
+                if pos_order.config_id:
+                    vals = {}
+                    if pos_order.amount_total < 0:
+                        vals['tipo_documento'] = '04'
+                        vals['naturaleza_operacion'] = '04'
+                    else:
+                        if pos_order.config_id.hka_tipo_documento:
+                            vals['tipo_documento'] = pos_order.config_id.hka_tipo_documento
+                        if pos_order.config_id.hka_naturaleza_operacion:
+                            vals['naturaleza_operacion'] = pos_order.config_id.hka_naturaleza_operacion
+                    if vals:
+                        move.write(vals)
             try:
                 move._send_to_hka()
             except Exception as e:

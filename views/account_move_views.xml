@@ -40,11 +40,13 @@
             <!-- Add HKA fields in form -->
             <xpath expr="//group[@id='header_right_group']" position="inside">
                 <field name="tipo_documento" 
-                       invisible="move_type not in ('out_invoice', 'out_refund') or state != 'draft'"/>
+                       invisible="move_type not in ('out_invoice', 'out_refund') or state == 'cancel'"
+                       readonly="hka_status == 'sent'"/>
                 <field name="naturaleza_operacion" 
-                       invisible="move_type not in ('out_invoice', 'out_refund') or state != 'draft'"/>
+                       invisible="move_type not in ('out_invoice', 'out_refund') or state == 'cancel'"
+                       readonly="hka_status == 'sent'"/>
                 <field name="reversed_entry_id" 
-                       invisible="move_type not in ('out_invoice', 'out_refund') or state != 'draft' or tipo_documento != '04'"
+                       invisible="move_type not in ('out_invoice', 'out_refund') or state == 'cancel' or tipo_documento != '04'"
                        domain="[('tipo_documento', 'in', ['01', '02', '03']), 
                                ('hka_status', '=', 'sent'),
                                ('hka_cufe', '!=', False)]"
