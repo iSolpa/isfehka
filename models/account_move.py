@@ -491,7 +491,7 @@ class AccountMove(models.Model):
     def _get_next_fiscal_number(self):
         """Get and increment the next fiscal number using SQL for concurrency control."""
         self.ensure_one()
-        if self.hka_status != 'draft':
+        if self.hka_status not in ('draft', 'error'):
             return False
 
         self.env.cr.execute("""
