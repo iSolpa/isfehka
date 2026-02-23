@@ -665,6 +665,47 @@ class AccountMove(models.Model):
         # If empty after sanitization, return default (also enforcing max length)
         return sanitized.strip() or 'Descuento'[:max_length]
 
+    def _get_hka_forma_pago_info(self, journal=None, payment_method_name=None, hka_payment_type=None, is_pos_cash=False):
+        """Determine HKA formaPagoFact and descFormaPago for a payment.
+        
+        Priority:
+        1. Explicitly configured hka_payment_type on the payment method/line/provider
+        2. Infer from journal type (cash -> 02, bank -> 08)
+        3. Infer from POS payment method characteristics
+        4. Default to '02' (Efectivo) as safe fallback
+        
+        When formaPagoFact is '99' (Otro), descFormaPago is required by DGI
+        and must be 4-50 characters.
+        """
+        forma_pago = hka_payment_type
+        
+        # If no explicit HKA type, infer from journal type
+        if not forma_pago and journal:
+            journal_type = journal.type if hasattr(journal, 'type') else None
+            if journal_type == 'cash':
+                forma_pago = '02'  # Efectivo
+            elif journal_type == 'bank':
+                forma_pago = '08'  # Transf/Deposito cta. Bancaria
+        
+        # POS cash-type payment methods default to cash
+        if not forma_pago and is_pos_cash:
+            forma_pago = '02'  # Efectivo
+        
+        # Final fallback: cash (safe default for manual/unmatched payments)
+        if not forma_pago:
+            forma_pago = '02'  # Efectivo
+        
+        # Build descFormaPago (only required when formaPagoFact = '99')
+        desc_forma_pago = ''
+        if forma_pago == '99':
+            desc = (payment_method_name or 'Otro metodo de pago')[:50]
+            # DGI requires minimum length for descFormaPago (at least 4 chars)
+            if len(desc) < 4:
+                desc = desc.ljust(4)
+            desc_forma_pago = desc
+        
+        return forma_pago, desc_forma_pago
+
     def _prepare_hka_totals_data(self):
         """Prepare totals data for HKA"""
         # Calculate rounding amount
@@ -748,9 +789,14 @@ class AccountMove(models.Model):
                 payment_method = payment.payment_method_id
                 amount = payment.amount
 
-                # Use configured HKA payment type or default to '99' (Other)
-                forma_pago = payment_method.hka_payment_type or '99'
-                desc_forma_pago = forma_pago == '99' and payment_method.name or ''
+                # Use configured HKA payment type, or infer from journal type
+                is_pos_cash = not payment_method.is_cash_count and not getattr(payment_method, 'use_payment_terminal', False)
+                forma_pago, desc_forma_pago = self._get_hka_forma_pago_info(
+                    journal=payment_method.journal_id if hasattr(payment_method, 'journal_id') else None,
+                    payment_method_name=payment_method.name,
+                    hka_payment_type=payment_method.hka_payment_type or None,
+                    is_pos_cash=is_pos_cash,
+                )
 
                 payment_methods.append({
                     'formaPagoFact': forma_pago,
@@ -771,19 +817,21 @@ class AccountMove(models.Model):
                 for payment in registered_payments:
                     amount = payment.amount
                     # Check for payment provider's hka_payment_type first (ecommerce payments)
-                    forma_pago = None
+                    explicit_hka_type = None
                     if hasattr(payment, 'payment_transaction_id') and payment.payment_transaction_id:
                         provider = payment.payment_transaction_id.provider_id
                         if provider and hasattr(provider, 'hka_payment_type'):
-                            forma_pago = provider.hka_payment_type
+                            explicit_hka_type = provider.hka_payment_type
                     # Fall back to payment method line's hka_payment_type
-                    if not forma_pago and hasattr(payment, 'payment_method_line_id') and payment.payment_method_line_id:
-                        forma_pago = getattr(payment.payment_method_line_id, 'hka_payment_type', None)
-                    # Default to '99' (Other) if not configured
-                    if not forma_pago:
-                        forma_pago = '99'
+                    if not explicit_hka_type and hasattr(payment, 'payment_method_line_id') and payment.payment_method_line_id:
+                        explicit_hka_type = getattr(payment.payment_method_line_id, 'hka_payment_type', None)
+                    
                     payment_method_name = payment.payment_method_line_id.name if payment.payment_method_line_id else payment.journal_id.name
-                    desc_forma_pago = (payment_method_name or '')[:20] if forma_pago == '99' else ''
+                    forma_pago, desc_forma_pago = self._get_hka_forma_pago_info(
+                        journal=payment.journal_id,
+                        payment_method_name=payment_method_name,
+                        hka_payment_type=explicit_hka_type,
+                    )
                     payment_methods.append({
                         'formaPagoFact': forma_pago,
                         'descFormaPago': desc_forma_pago,
