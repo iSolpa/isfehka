@@ -78,6 +78,20 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane">
+                                <field name="isfehka_auto_send_on_post"/>
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="isfehka_auto_send_on_post"/>
+                                <div class="text-muted">
+                                    Enviar automáticamente facturas de cliente a HKA al confirmarlas.
+                                    Necesario para suscripciones y facturación automática.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </xpath>
         </field>

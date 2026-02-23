@@ -8,3 +8,4 @@ access_res_corregimiento_pa_manager,res.corregimiento.pa.manager,isfehka.model_r
 access_account_move_cancel_reason_user,account.move.cancel.reason.user,model_account_move_cancel_reason,isfehka.group_isfehka_user,1,1,1,0
 access_isfehka_configuration_user,isfehka.configuration.user,model_isfehka_configuration,isfehka.group_isfehka_user,1,0,0,0
 access_isfehka_configuration_manager,isfehka.configuration.manager,model_isfehka_configuration,isfehka.group_isfehka_manager,1,1,1,1
+access_account_move_register_hka_manager,account.move.register.hka.manager,model_account_move_register_hka,isfehka.group_isfehka_manager,1,1,1,0

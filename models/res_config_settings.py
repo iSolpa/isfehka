@@ -28,6 +28,12 @@ class ResConfigSettings(models.TransientModel):
     ], string='Tipo de Documento por Defecto',
        default='01',
        help='Tipo de documento por defecto para facturas generadas desde ventas/facturas')
+    isfehka_auto_send_on_post = fields.Boolean(
+        related='company_id.hka_auto_send_on_post',
+        string='Enviar a HKA al Confirmar',
+        readonly=False,
+        help='Enviar automáticamente facturas de cliente a HKA al confirmarlas.')
+
     isfehka_next_number = fields.Char(
         string='Próximo Número Fiscal HKA',
         help='Próximo número de documento fiscal a utilizar (10 dígitos). '

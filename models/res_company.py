@@ -22,6 +22,14 @@ class ResCompany(models.Model):
         help='Default Point of Sale code for HKA integration (3 digits). Used when POS module is not installed.'
     )
 
+    hka_auto_send_on_post = fields.Boolean(
+        string='Enviar a HKA al Confirmar',
+        default=True,
+        help='Enviar automáticamente facturas de cliente a HKA al confirmarlas. '
+             'Necesario para suscripciones y facturación automática. '
+             'Si se desactiva, el envío será manual mediante el botón "Enviar a HKA".'
+    )
+
     @api.constrains('hka_branch_code', 'hka_pos_code')
     def _check_hka_codes(self):
         for company in self:

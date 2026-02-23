@@ -8,30 +8,45 @@
         <field name="arch" type="xml">
             <!-- Add HKA buttons in header -->
             <button name="action_post" position="before">
+                <button name="button_send_to_hka" 
+                        type="object" 
+                        string="Enviar a HKA" 
+                        class="oe_highlight"
+                        invisible="move_type not in ('out_invoice', 'out_refund') or state != 'posted' or hka_status not in ('draft', 'error')"
+                        data-hotkey="shift+h"
+                        groups="isfehka.group_isfehka_user"/>
                 <button name="button_cancel_hka" 
                         type="object" 
                         string="Anular en HKA" 
                         class="oe_highlight"
-                        invisible="hka_status != 'sent'"
+                        invisible="move_type not in ('out_invoice', 'out_refund') or hka_status != 'sent'"
                         data-hotkey="shift+a"
                         groups="isfehka.group_isfehka_user"/>
                 <button name="action_get_documents" 
                         type="object" 
                         string="Recuperar Documentos" 
                         class="oe_highlight"
-                        invisible="hka_status != 'sent' or (hka_pdf and hka_xml)"
+                        invisible="move_type not in ('out_invoice', 'out_refund') or hka_status != 'sent' or (hka_pdf and hka_xml)"
                         data-hotkey="shift+d"
+                        groups="isfehka.group_isfehka_user"/>
+                <button name="button_register_hka_document" 
+                        type="object" 
+                        string="Registrar Documento Fiscal" 
+                        invisible="move_type not in ('out_invoice', 'out_refund') or state != 'posted' or hka_status not in ('draft', 'error')"
+                        data-hotkey="shift+r"
                         groups="isfehka.group_isfehka_user"/>
             </button>
 
             <!-- Add HKA fields in form -->
             <xpath expr="//group[@id='header_right_group']" position="inside">
                 <field name="tipo_documento" 
-                       invisible="state != 'draft'"/>
+                       invisible="move_type not in ('out_invoice', 'out_refund') or state == 'cancel'"
+                       readonly="hka_status == 'sent'"/>
                 <field name="naturaleza_operacion" 
-                       invisible="state != 'draft'"/>
+                       invisible="move_type not in ('out_invoice', 'out_refund') or state == 'cancel'"
+                       readonly="hka_status == 'sent'"/>
                 <field name="reversed_entry_id" 
-                       invisible="state != 'draft' or tipo_documento != '04'"
+                       invisible="move_type not in ('out_invoice', 'out_refund') or state == 'cancel' or tipo_documento != '04'"
                        domain="[('tipo_documento', 'in', ['01', '02', '03']), 
                                ('hka_status', '=', 'sent'),
                                ('hka_cufe', '!=', False)]"
@@ -41,7 +56,8 @@
 
             <!-- Add HKA status page -->
             <notebook position="inside">
-                <page string="Facturación Electrónica" name="hka_info">
+                <page string="Facturación Electrónica" name="hka_info"
+                      invisible="move_type not in ('out_invoice', 'out_refund')">
                     <group>
                         <group>
                             <field name="hka_status"/>

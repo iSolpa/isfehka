@@ -2,6 +2,7 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 import base64
 import logging
+import pytz
 from datetime import datetime, timedelta
 
 _logger = logging.getLogger(__name__)
@@ -79,10 +80,20 @@ class AccountMove(models.Model):
 
     @api.model
     def _default_tipo_documento(self):
+        move_type = self.env.context.get('default_move_type', 'entry')
+        if move_type not in ('out_invoice', 'out_refund'):
+            return False
         company_id = self.env.context.get('default_company_id') or self.env.company.id
         company = self.env['res.company'].browse(company_id)
         config = company.hka_configuration_id
         return config.default_tipo_documento if config else '01'
+
+    @api.model
+    def _default_naturaleza_operacion(self):
+        move_type = self.env.context.get('default_move_type', 'entry')
+        if move_type not in ('out_invoice', 'out_refund'):
+            return False
+        return '01'
 
     tipo_documento = fields.Selection([
         ('01', 'Factura de Operación Interna'),
@@ -94,7 +105,7 @@ class AccountMove(models.Model):
         ('07', 'Nota de Débito Genérica'),
         ('08', 'Factura de Zona Franca'),
         ('09', 'Factura de Reembolso')
-    ], string='Tipo de Documento', required=True,
+    ], string='Tipo de Documento',
        default=lambda self: self._default_tipo_documento())
 
     naturaleza_operacion = fields.Selection([
@@ -102,31 +113,54 @@ class AccountMove(models.Model):
         ('02', 'Exportación'),
         ('03', 'Transferencia'),
         ('04', 'Devolución')
-    ], string='Naturaleza de Operación', default='01')
+    ], string='Naturaleza de Operación',
+       default=lambda self: self._default_naturaleza_operacion())
 
     motivo_anulacion = fields.Text(
         string='Motivo de Anulación',
         help='Razón por la cual se anula el documento'
     )
 
-    @api.constrains('partner_id')
-    def _check_partner_ruc(self):
-        for move in self:
-            if move.move_type in ('out_invoice', 'out_refund'):
-                if not move.partner_id.ruc_verified:
-                    raise ValidationError(_('El RUC del cliente debe estar verificado antes de crear una factura electrónica.'))
-
-    @api.constrains('tipo_documento', 'reversed_entry_id')
-    def _check_credit_note_reference(self):
-        for move in self:
-            if move.tipo_documento == '04' and not move.reversed_entry_id:
-                raise ValidationError(_('Debe seleccionar una factura a la cual aplicar la nota de crédito.'))
-
     def action_post(self):
-        """Override to send invoice to HKA when posting"""
+        """Override action_post to optionally auto-send customer invoices to HKA.
+        
+        When hka_auto_send_on_post is enabled on the company, customer invoices
+        are automatically sent to HKA after posting. This covers:
+        - POS invoices (tipo_documento/naturaleza set from POS config)
+        - Subscription renewals
+        - Any other automated invoicing flow
+        """
         res = super().action_post()
-        for move in self.filtered(lambda m: m.move_type in ('out_invoice', 'out_refund')):
-            move._send_to_hka()
+        for move in self.filtered(
+            lambda m: m.move_type in ('out_invoice', 'out_refund')
+            and m.state == 'posted'
+            and m.hka_status != 'sent'
+            and m.company_id.hka_auto_send_on_post
+            and m.tipo_documento
+        ):
+            # For POS invoices, apply tipo_documento/naturaleza from POS config
+            if hasattr(move, 'pos_order_ids') and move.pos_order_ids:
+                pos_order = move.pos_order_ids[0]
+                if pos_order.config_id:
+                    vals = {}
+                    if pos_order.amount_total < 0:
+                        vals['tipo_documento'] = '04'
+                        vals['naturaleza_operacion'] = '04'
+                    else:
+                        if pos_order.config_id.hka_tipo_documento:
+                            vals['tipo_documento'] = pos_order.config_id.hka_tipo_documento
+                        if pos_order.config_id.hka_naturaleza_operacion:
+                            vals['naturaleza_operacion'] = pos_order.config_id.hka_naturaleza_operacion
+                    if vals:
+                        move.write(vals)
+            try:
+                move._send_to_hka()
+            except Exception as e:
+                _logger.warning('Auto-send to HKA failed for %s: %s', move.name or move.id, e)
+                move.write({
+                    'hka_status': 'error',
+                    'hka_message': str(e),
+                })
         return res
 
     def _send_to_hka(self):
@@ -239,6 +273,58 @@ class AccountMove(models.Model):
             })
             self.env.cr.rollback()  # Rollback transaction to ensure draft state
             raise UserError(str(e))
+
+    def button_register_hka_document(self):
+        """Open wizard to register an existing HKA document without re-sending"""
+        self.ensure_one()
+        if self.state != 'posted':
+            raise UserError(_('La factura debe estar confirmada antes de registrar el documento HKA.'))
+        if self.hka_status == 'sent':
+            raise UserError(_('Esta factura ya está registrada como enviada a HKA.'))
+        return {
+            'name': _('Registrar Documento Fiscal'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move.register.hka',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_move_id': self.id},
+        }
+
+    def button_send_to_hka(self):
+        """Manual button to send invoice to HKA"""
+        self.ensure_one()
+        
+        # Check if invoice is posted
+        if self.state != 'posted':
+            raise UserError(_('Solo se pueden enviar facturas confirmadas a HKA'))
+        
+        # Check if already sent
+        if self.hka_status == 'sent':
+            raise UserError(_('Esta factura ya ha sido enviada a HKA'))
+        
+        try:
+            self._send_to_hka()
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Éxito'),
+                    'message': _('Factura enviada exitosamente a HKA'),
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+        except Exception as e:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Error'),
+                    'message': str(e),
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
 
     def button_cancel_hka(self):
         """Open the cancellation reason wizard"""
@@ -354,10 +440,27 @@ class AccountMove(models.Model):
             if not self.reversed_entry_id.hka_cufe:
                 raise UserError(_('La factura referenciada debe tener un CUFE válido'))
 
+            # Use the HKA reception date (when CUFE was generated) if available to match CUFE date
+            # NOTE: hka_fecha_recepcion_dgi is stored as Panama time (not UTC) due to how HKA response is parsed
+            # So we DON'T convert - just format directly with the Panama timezone offset
+            ref_dt = self.reversed_entry_id.hka_fecha_recepcion_dgi or self.reversed_entry_id.invoice_date
+            if ref_dt:
+                if isinstance(ref_dt, datetime):
+                    # hka_fecha_recepcion_dgi is already in Panama time, just format with offset
+                    fecha_ref_str = ref_dt.strftime('%Y-%m-%dT%H:%M:%S-05:00')
+                else:
+                    # It's a date (invoice_date), format as midnight Panama time
+                    fecha_ref_str = ref_dt.strftime('%Y-%m-%dT00:00:00-05:00')
+            else:
+                panama_tz = pytz.timezone('America/Panama')
+                now_utc = pytz.utc.localize(datetime.utcnow())
+                now_local = now_utc.astimezone(panama_tz)
+                fecha_ref_str = now_local.strftime('%Y-%m-%dT%H:%M:%S-05:00')
+
             data['documento']['datosTransaccion']['informacionInteres'] = 'Factura de nota de credito referenciada'
             data['documento']['datosTransaccion']['listaDocsFiscalReferenciados'] = {
                 'docFiscalReferenciado': [{
-                    'fechaEmisionDocFiscalReferenciado': self.reversed_entry_id.invoice_date.strftime('%Y-%m-%dT%H:%M:%S-05:00'),
+                    'fechaEmisionDocFiscalReferenciado': fecha_ref_str,
                     'cufeFEReferenciada': self.reversed_entry_id.hka_cufe,
                     'nroFacturaPapel': '',
                     'nroFacturaImpFiscal': '',
@@ -421,20 +524,34 @@ class AccountMove(models.Model):
             'pais': 'PA',
         }
 
-    def _is_global_discount_line(self, line):
-        """Check if a line represents a global discount from POS"""
+    def _is_discount_line(self, line):
+        """Check if a line represents a discount (global, loyalty, or coupon)
+        
+        For regular invoices, discount lines have negative prices.
+        For credit notes, we only check for explicitly marked discount products (not price sign).
+        """
         if not line.product_id:
             return False
+        
         # Check if product is marked as global discount in POS config
         if hasattr(line.product_id, 'is_global_discount') and line.product_id.is_global_discount:
             _logger.debug(f"Line {line.id} marked as global discount via product flag.")
             return True
+        
         # Check if product is used in any POS global discount program
         if hasattr(self, 'pos_order_ids') and self.pos_order_ids:
             pos_config = self.pos_order_ids[0].config_id
             if hasattr(pos_config, 'discount_product_id') and pos_config.discount_product_id == line.product_id:
                 _logger.debug(f"Line {line.id} marked as global discount via POS config.")
                 return True
+        
+        # For regular invoices only: check if line has negative price (loyalty/coupon discount)
+        # Do NOT use this logic for credit notes as all lines are positive in refunds
+        if self.move_type == 'out_invoice':
+            if line.price_unit < 0 or line.price_subtotal < 0:
+                _logger.debug(f"Line {line.id} detected as loyalty/discount line (negative price: unit={line.price_unit}, subtotal={line.price_subtotal}).")
+                return True
+        
         return False
 
 
@@ -444,22 +561,39 @@ class AccountMove(models.Model):
         
         # First process regular lines
         for line in self.invoice_line_ids:
-            # Skip lines with quantity 0 and global discount lines (for both invoices and credit notes)
-            if not line.quantity or self._is_global_discount_line(line):
+            # Skip lines with quantity 0 and discount lines (global, loyalty, coupon) for both invoices and credit notes
+            if not line.quantity or self._is_discount_line(line):
                 continue
 
             # Format numeric values according to HKA specifications
             cantidad = '{:.3f}'.format(line.quantity)  # N|13,3 format
-            precio_unitario = '{:.3f}'.format(line.price_unit)  # N|13,3 format
-
-            # Calculate line discount
-            precio_unitario_descuento = '0.000'
+            
+            # Determine the original price and discount amount
+            # Handle both explicit discounts (discount field) and implicit pricelist discounts
+            original_price = line.price_unit
+            discount_amount = 0.0
+            
+            # First check if there's an explicit discount percentage
             if line.discount:
+                # Explicit discount: price_unit is before discount, calculate discount amount
                 discount_amount = (line.price_unit * line.discount) / 100
-                precio_unitario_descuento = '{:.3f}'.format(discount_amount)
+                _logger.debug(f"Line {line.id} has explicit discount: {line.discount}% on {line.price_unit}")
+            elif line.product_id and line.product_id.lst_price > 0:
+                # Check for implicit pricelist discount
+                # Compare price_unit (actual selling price) with product list price
+                list_price = line.product_id.lst_price
+                if line.price_unit < list_price:
+                    # Pricelist applied a discount
+                    original_price = list_price
+                    discount_amount = list_price - line.price_unit
+                    implicit_discount_pct = (discount_amount / list_price) * 100
+                    _logger.debug(f"Line {line.id} has implicit pricelist discount: {implicit_discount_pct:.2f}% (list: {list_price}, actual: {line.price_unit})")
+            
+            precio_unitario = '{:.3f}'.format(original_price)
+            precio_unitario_descuento = '{:.3f}'.format(discount_amount)
 
             # Calculate price after discount per unit
-            price_after_discount = line.price_unit - float(precio_unitario_descuento)
+            price_after_discount = original_price - discount_amount
 
             # Calculate total price for the line (quantity × price after discount)
             precio_item = price_after_discount * line.quantity
@@ -501,19 +635,28 @@ class AccountMove(models.Model):
         
         return items
 
-    def _sanitize_hka_text(self, text):
-        """Sanitize text for HKA API to avoid invalid characters"""
+    def _sanitize_hka_text(self, text, max_length=50):
+        """Sanitize text for HKA integration with length enforcement and ASCII normalization"""
         import re
+        import unicodedata
         if not text:
             return 'Descuento'
+        
+        # Normalize unicode characters to ASCII (e.g., "específicos" -> "especificos")
+        # NFD = Canonical Decomposition, then filter out combining marks
+        text = unicodedata.normalize('NFD', text)
+        text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
+        
         # Remove any special characters except alphanumeric, spaces, periods, and hyphens
         sanitized = re.sub(r'[^\w\s.-]', '', text)
         # Remove square brackets and their contents
         sanitized = re.sub(r'\[.*?\]', '', sanitized)
         # Replace multiple spaces with a single space and strip
         sanitized = ' '.join(sanitized.split())
-        # If empty after sanitization, return default
-        return sanitized.strip() or 'Descuento'
+        # Enforce maximum length
+        sanitized = sanitized[:max_length] if sanitized else ''
+        # If empty after sanitization, return default (also enforcing max length)
+        return sanitized.strip() or 'Descuento'[:max_length]
 
     def _prepare_hka_totals_data(self):
         """Prepare totals data for HKA"""
@@ -539,24 +682,24 @@ class AccountMove(models.Model):
             float(item['valorITBMS']) for item in items_data
         )
 
-        # Calculate global discounts
-        global_discount_lines = self.invoice_line_ids.filtered(
-            lambda l: self._is_global_discount_line(l)
+        # Calculate all discounts (global, loyalty, coupon)
+        discount_lines = self.invoice_line_ids.filtered(
+            lambda l: self._is_discount_line(l)
         )
         # For totalDescuento field: use price_subtotal (without tax) to match listaDescBonificacion
-        total_global_discounts_subtotal = abs(sum(
+        total_discounts_subtotal = abs(sum(
             line.price_subtotal
-            for line in global_discount_lines
+            for line in discount_lines
         ))
         # For totalFactura calculation: use price_total (with tax) since totalTodosItems includes tax
-        total_global_discounts_with_tax = abs(sum(
+        total_discounts_with_tax = abs(sum(
             line.price_total
-            for line in global_discount_lines
+            for line in discount_lines
         ))
 
         # Handle rounding down as a discount
         # totalDescuento must include tax to match DGI's validation formula
-        total_discounts = total_global_discounts_with_tax
+        total_discounts = total_discounts_with_tax
         if rounding_amount < -0.01:  # Only add negative rounding (rounding down)
             total_discounts += abs(rounding_amount)
 
@@ -566,7 +709,7 @@ class AccountMove(models.Model):
         total_factura = total_todos_items - total_discounts
 
         # Calculate number of items (including rounding line if present)
-        regular_items = len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0 and not self._is_global_discount_line(l)))
+        regular_items = len(self.invoice_line_ids.filtered(lambda l: l.quantity > 0 and not self._is_discount_line(l)))
         total_items = regular_items + (1 if has_rounding_line else 0)
 
         # Prepare payment methods data
@@ -615,13 +758,48 @@ class AccountMove(models.Model):
                 change_amount = total_payments - total_factura
 
         else:
-            # For regular invoices, use a single payment method
-            payment_methods.append({
-                'formaPagoFact': '02',  # Default to cash for regular invoices
-                'descFormaPago': '',
-                'valorCuotaPagada': '{:.2f}'.format(total_factura)
-            })
-            total_payments = total_factura
+            # Check for registered payments on the invoice (from sales orders, etc.)
+            registered_payments = self._get_reconciled_payments()
+            if registered_payments:
+                for payment in registered_payments:
+                    amount = payment.amount
+                    # Check for payment provider's hka_payment_type first (ecommerce payments)
+                    forma_pago = None
+                    if hasattr(payment, 'payment_transaction_id') and payment.payment_transaction_id:
+                        provider = payment.payment_transaction_id.provider_id
+                        if provider and hasattr(provider, 'hka_payment_type'):
+                            forma_pago = provider.hka_payment_type
+                    # Fall back to payment method line's hka_payment_type
+                    if not forma_pago and hasattr(payment, 'payment_method_line_id') and payment.payment_method_line_id:
+                        forma_pago = getattr(payment.payment_method_line_id, 'hka_payment_type', None)
+                    # Default to '99' (Other) if not configured
+                    if not forma_pago:
+                        forma_pago = '99'
+                    payment_method_name = payment.payment_method_line_id.name if payment.payment_method_line_id else payment.journal_id.name
+                    desc_forma_pago = (payment_method_name or '')[:20] if forma_pago == '99' else ''
+                    payment_methods.append({
+                        'formaPagoFact': forma_pago,
+                        'descFormaPago': desc_forma_pago,
+                        'valorCuotaPagada': '{:.2f}'.format(amount)
+                    })
+                    total_payments += amount
+                # If payments don't cover full amount, add remaining as credit
+                remaining = total_factura - total_payments
+                if remaining > 0.01:
+                    payment_methods.append({
+                        'formaPagoFact': '01',  # Credit for unpaid portion
+                        'descFormaPago': '',
+                        'valorCuotaPagada': '{:.2f}'.format(remaining)
+                    })
+                    total_payments = total_factura
+            else:
+                # No payments registered - default to credit (unpaid invoice)
+                payment_methods.append({
+                    'formaPagoFact': '01',  # Credit - invoice not yet paid
+                    'descFormaPago': '',
+                    'valorCuotaPagada': '{:.2f}'.format(total_factura)
+                })
+                total_payments = total_factura
 
         data = {
             'totalPrecioNeto': '{:.2f}'.format(total_precio_neto),
@@ -639,15 +817,22 @@ class AccountMove(models.Model):
             }
         }
 
-        # Add global discounts and rounding down to listaDescBonificacion if any exist
+        # Add all discounts (global, loyalty, coupon) and rounding down to listaDescBonificacion if any exist
         discount_bonifications = []
         
-        # Add global discount lines if any
-        if global_discount_lines:
-            for line in global_discount_lines:
+        # Add discount lines if any
+        if discount_lines:
+            for line in discount_lines:
+                # Ensure we have a valid description for the discount
+                desc_text = line.name or line.product_id.name or 'Descuento'
+                sanitized_desc = self._sanitize_hka_text(desc_text)
+                # Ensure the description is not empty after sanitization
+                if not sanitized_desc or sanitized_desc.strip() == '':
+                    sanitized_desc = 'Descuento'
+                
                 # Use price_total (with tax) to match totalDescuento
                 discount_bonifications.append({
-                    'descDescuento': self._sanitize_hka_text(line.name),
+                    'descDescuento': sanitized_desc[:30],  # Enforce 30 char max for HKA
                     'montoDescuento': '{:.2f}'.format(abs(line.price_total))
                 })
         
@@ -714,6 +899,20 @@ class AccountMove(models.Model):
         self.ensure_one()
         partner = self.partner_id
         errors = []
+
+        # Validate move type
+        if self.move_type not in ('out_invoice', 'out_refund'):
+            raise ValidationError(_('Solo se pueden enviar facturas de cliente y notas de crédito a HKA.'))
+
+        # Validate HKA document fields
+        if not self.tipo_documento:
+            errors.append(_('El tipo de documento es requerido para enviar a HKA.'))
+        if not self.naturaleza_operacion:
+            errors.append(_('La naturaleza de operación es requerida para enviar a HKA.'))
+
+        # Validate partner RUC is verified
+        if not partner.ruc_verified:
+            errors.append(_('El RUC del cliente debe estar verificado antes de enviar a HKA.'))
 
         # Validate credit note specific data
         if self.tipo_documento == '04':

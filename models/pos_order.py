@@ -9,9 +9,13 @@ class PosOrder(models.Model):
     def _generate_pos_order_invoice(self):
         """Override to handle HKA integration when creating invoices from POS orders"""
         # Validate no mixed refund/sale lines when creating invoice
+        # Skip discount lines (negative price_subtotal with positive qty) as they don't count as sales/returns
         has_positive = False
         has_negative = False
         for line in self.lines:
+            # Skip discount lines - they have positive qty but negative subtotal
+            if line.qty > 0 and line.price_subtotal < 0:
+                continue
             if line.qty > 0:
                 has_positive = True
             if line.qty < 0:
@@ -29,48 +33,47 @@ class PosOrder(models.Model):
         if not moves:
             return moves
 
-        # Get the actual invoice record
-        if not isinstance(moves, models.Model):
-            invoice = self.account_move
-            if invoice:
-                try:
-                    # Set HKA fields from POS config, handling refunds properly
+        # Get the actual invoice record — fallback if action_post() auto-send didn't fire
+        invoice = moves if isinstance(moves, models.Model) else self.account_move
+        if invoice:
+            try:
+                # Set HKA fields from POS config if not already sent
+                if invoice.hka_status != 'sent':
                     invoice.write({
                         'tipo_documento': '04' if self.amount_total < 0 else self.config_id.hka_tipo_documento,
                         'naturaleza_operacion': '04' if self.amount_total < 0 else self.config_id.hka_naturaleza_operacion,
                     })
-                    # Send to HKA
                     invoice._send_to_hka()
-                    
-                    # Sync CUFE data back to POS order for CAFE display
-                    if hasattr(invoice, '_sync_cufe_to_pos_orders'):
-                        invoice._sync_cufe_to_pos_orders()
-                    
-                except Exception as e:
-                    error_msg = str(e)
-                    _logger.error(
-                        'Failed to send invoice %s to HKA: %s',
-                        invoice.name or 'Unknown',
-                        error_msg
-                    )
-                    # Mark invoice as error and store the message
-                    invoice.write({
-                        'hka_status': 'error',
-                        'hka_message': error_msg
-                    })
-                    # Delete the invoice since it failed HKA validation
-                    invoice.button_draft()
-                    invoice.button_cancel()
-                    invoice.unlink()
-                    # Reset POS order state
-                    self.write({
-                        'state': 'draft',
-                        'account_move': False,
-                    })
-                    # Raise error to prevent completion
-                    raise models.ValidationError(_(
-                        'Error al enviar la factura a HKA. Por favor contacte al administrador.\n\n'
-                        'Detalles: %s'
-                    ) % error_msg)
+                
+                # Sync CUFE data back to POS order for CAFE display
+                if hasattr(invoice, '_sync_cufe_to_pos_orders'):
+                    invoice._sync_cufe_to_pos_orders()
+                
+            except Exception as e:
+                error_msg = str(e)
+                _logger.error(
+                    'Failed to send invoice %s to HKA: %s',
+                    invoice.name or 'Unknown',
+                    error_msg
+                )
+                # Mark invoice as error and store the message
+                invoice.write({
+                    'hka_status': 'error',
+                    'hka_message': error_msg
+                })
+                # Delete the invoice since it failed HKA validation
+                invoice.button_draft()
+                invoice.button_cancel()
+                invoice.unlink()
+                # Reset POS order state
+                self.write({
+                    'state': 'draft',
+                    'account_move': False,
+                })
+                # Raise error to prevent completion
+                raise models.ValidationError(_(
+                    'Error al enviar la factura a HKA. Por favor contacte al administrador.\n\n'
+                    'Detalles: %s'
+                ) % error_msg)
         
         return moves

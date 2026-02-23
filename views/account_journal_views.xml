@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add HKA Payment Type column to inbound payment method lines -->
+    <record id="account_journal_view_form_inherit_isfehka_inbound" model="ir.ui.view">
+        <field name="name">account.journal.form.inherit.isfehka.inbound</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.view_account_journal_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='inbound_payment_method_line_ids']/tree/field[@name='name']" position="after">
+                <field name="hka_payment_type" string="HKA Payment Type" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Add HKA Payment Type column to outbound payment method lines -->
+    <record id="account_journal_view_form_inherit_isfehka_outbound" model="ir.ui.view">
+        <field name="name">account.journal.form.inherit.isfehka.outbound</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.view_account_journal_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='outbound_payment_method_line_ids']/tree/field[@name='name']" position="after">
+                <field name="hka_payment_type" string="HKA Payment Type" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
