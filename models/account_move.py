@@ -472,7 +472,7 @@ class AccountMove(models.Model):
     def _get_next_fiscal_number(self):
         """Get and increment the next fiscal number using the shared configuration."""
         self.ensure_one()
-        if self.hka_status != 'draft':
+        if self.hka_status not in ('draft', 'error'):
             return False
         config = self._get_hka_configuration()
         return config.get_and_increment_next_number()
