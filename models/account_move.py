@@ -230,6 +230,13 @@ class AccountMove(models.Model):
                     _logger.warning(f"Could not save fechaRecepcionDGI for {self.name}: {e} - Continuing with other data")
                     # Don't fail - we already saved the critical data
 
+                # Trigger sync to POS orders if isfehka_cafe module is installed
+                try:
+                    self._sync_cufe_to_pos_orders()
+                except AttributeError:
+                    # Method doesn't exist if isfehka_cafe module is not installed
+                    pass
+
                 try:
                     # Then handle PDF and XML files with proper filenames
                     pdf_filename = f'FACT_{self.numero_documento_fiscal}.pdf'
