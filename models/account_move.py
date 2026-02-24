@@ -816,14 +816,9 @@ class AccountMove(models.Model):
             if registered_payments:
                 for payment in registered_payments:
                     amount = payment.amount
-                    # Check for payment provider's hka_payment_type first (ecommerce payments)
+                    # Check payment method line's hka_payment_type (configured on journal)
                     explicit_hka_type = None
-                    if hasattr(payment, 'payment_transaction_id') and payment.payment_transaction_id:
-                        provider = payment.payment_transaction_id.provider_id
-                        if provider and hasattr(provider, 'hka_payment_type'):
-                            explicit_hka_type = provider.hka_payment_type
-                    # Fall back to payment method line's hka_payment_type
-                    if not explicit_hka_type and hasattr(payment, 'payment_method_line_id') and payment.payment_method_line_id:
+                    if hasattr(payment, 'payment_method_line_id') and payment.payment_method_line_id:
                         explicit_hka_type = getattr(payment.payment_method_line_id, 'hka_payment_type', None)
                     
                     payment_method_name = payment.payment_method_line_id.name if payment.payment_method_line_id else payment.journal_id.name
