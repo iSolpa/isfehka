@@ -53,11 +53,11 @@ rollback en la propia base); eliminarla es un paso manual post-verificación.
 
 | # | Caso | Cómo | Estado |
 |---|---|---|---|
-| a | Instalación limpia base+driver | Docker Odoo 18, `-i isfe_base,isfehka` | automatizado (`.test/`) |
-| b | Upgrade de BD isfehka existente (shape 17: modelo configuración) | Docker: instalar isfehka 1.x, sembrar config/factura/adjuntos/método de pago, `-u isfehka`, verificar | automatizado (`.test/`) |
-| b2 | Upgrade de BD isfehka existente (shape 18: params ICP) | ídem con seed por `ir.config_parameter` | automatizado (`.test/`) |
+| a | Instalación limpia base+drivers (trio, multi-PAC) | Docker Odoo 18, `-i isfe_base,isfedfp,isfehka` + smokes | PASÓ 2026-06-11 (`tests/shell/`, isfe_base) |
+| b | Upgrade de BD isfehka existente (shape 17: modelo configuración) | Docker: instalar isfehka 1.x, sembrar config/factura/adjuntos/método de pago, `-u isfehka`, verificar | PASÓ 2026-06-11 (`tests/shell/seed_legacy_a.py` + `verify_migration_a.py`) |
+| b2 | Upgrade de BD isfehka existente (shape 18: params ICP) | ídem con seed por `ir.config_parameter` | PASÓ 2026-06-11 (`tests/shell/*_b.py`) |
 | c | Emitir/anular/PDF/XML por tipo (01/04/06) | ambiente Pruebas del PAC (demo HKA), `test_mode=True` | pendiente (M6, requiere credenciales demo) |
-| d | Integridad de datos (CUFE/QR/contadores/adjuntos/chatter) | asserts del seed-verify en (b)/(b2) + post-migración | automatizado |
+| d | Integridad de datos (CUFE/QR/contadores/adjuntos/chatter) | asserts del seed-verify en (b)/(b2) + post-migración | PASÓ 2026-06-11 |
 | e | Cumplimiento del payload por PAC contra el API real | M6 (cutover de ensayo, ambiente=02) | pendiente |
 | f | Copia de una BD isfehka REAL (Inversora) antes del go-live | restaurar copia en staging, correr (b), verificar | pendiente (gate de M3→prod) |
 

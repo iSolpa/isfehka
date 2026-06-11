@@ -37,17 +37,19 @@ def column_exists(cr, table, column):
 
 
 def rename_column(cr, table, old, new):
-    """Rename ``old`` -> ``new``, absorbing the empty ``new`` column isfe_base
-    just created. If ``new`` already carries data (partial re-run), only fill
-    the gaps and drop ``old``."""
+    """Rename ``old`` -> ``new``, absorbing the ``new`` column isfe_base just
+    created. The LEGACY column is authoritative: when ``new`` already exists
+    it may carry ORM-backfilled DEFAULTS on every legacy row (e.g. fe_status
+    'draft', fe_branch_code '0000' — written at base install), so the copy
+    must overwrite unconditionally, never fill-gaps-only."""
     if not column_exists(cr, table, old):
         return
     if column_exists(cr, table, new):
         cr.execute(f'SELECT 1 FROM "{table}" WHERE "{new}" IS NOT NULL LIMIT 1')
         if cr.fetchone():
-            _logger.warning('isfehka migr: %s.%s already has data; merging from %s',
-                            table, new, old)
-            cr.execute(f'UPDATE "{table}" SET "{new}" = "{old}" WHERE "{new}" IS NULL')
+            _logger.info('isfehka migr: %s.%s pre-filled (ORM defaults); '
+                         'overwriting from legacy %s', table, new, old)
+            cr.execute(f'UPDATE "{table}" SET "{new}" = "{old}"')
             cr.execute(f'ALTER TABLE "{table}" DROP COLUMN "{old}"')
             return
         cr.execute(f'ALTER TABLE "{table}" DROP COLUMN "{new}"')
@@ -245,7 +247,10 @@ def migrate(cr, version):
             """, [config_id])
             _logger.info('isfehka migr: migrated ICP globals into isfe_configuration %s',
                          config_id)
-        cr.execute("DELETE FROM ir_config_parameter WHERE key LIKE 'isfehka.%%'")
+
+    # Legacy ICP globals are obsolete in BOTH shapes (the table shape may
+    # carry stale isfehka.* params from the old settings page as well).
+    cr.execute("DELETE FROM ir_config_parameter WHERE key LIKE 'isfehka.%%'")
 
     # ------------------------------------------------------------------
     # 6. Group memberships: legacy HKA groups -> neutral FE groups.
@@ -285,10 +290,21 @@ def migrate(cr, version):
     cr.execute("""
         DELETE FROM ir_model_data a
          WHERE a.module = 'isfehka'
-           AND a.model IN ('ir.model', 'ir.model.fields', 'ir.model.access',
+           AND a.model IN ('ir.model', 'ir.model.fields',
                            'ir.model.constraint', 'ir.model.relation')
            AND EXISTS (SELECT 1 FROM ir_model_data b
                         WHERE b.module = 'isfe_base'
                           AND b.name = a.name AND b.model = a.model)
     """)
+    # Legacy ACLs are obsolete (the base ships its own and the new driver has
+    # none): delete the RECORDS, not just their xmlids — a de-referenced ACL
+    # row would keep an FK onto the legacy groups and break the
+    # end-of-upgrade sweep that removes those groups.
+    cr.execute("""
+        DELETE FROM ir_model_access a
+         USING ir_model_data d
+         WHERE d.module = 'isfehka' AND d.model = 'ir.model.access'
+           AND d.res_id = a.id
+    """)
+    cr.execute("DELETE FROM ir_model_data WHERE module = 'isfehka' AND model = 'ir.model.access'")
     _logger.info('isfehka 2.0 pre-migration done')
