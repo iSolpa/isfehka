@@ -363,7 +363,11 @@ class HKADriver(models.AbstractModel):
                 'puntoFacturacionFiscal': doc.get('pos_code') or '',
                 'naturalezaOperacion': doc.get('nature') or '01',
                 'tipoOperacion': '1',
-                'destinoOperacion': '1' if (buyer.get('country_code') or 'PA') == 'PA' else '2',
+                # DestinoOperacion describes the OPERATION, not the buyer's
+                # nationality: only an export invoice (doc type '03') is
+                # destino 2. Partner country data is unreliable (prod
+                # extranjeros carry country=PA), so never key this off it.
+                'destinoOperacion': '2' if doc.get('doc_type') == '03' else '1',
                 'formatoCAFE': '1',
                 'entregaCAFE': '1',
                 'envioContenedor': '1',
@@ -455,12 +459,13 @@ class HKADriver(models.AbstractModel):
         Negative-price lines (POS loyalty/coupon rewards) cannot be HKA items
         (negative precioUnitario is rejected); the legacy module reported them
         in ``listaDescBonificacion``. Credit-note items arrive already
-        absolute from the base, so the split only triggers on invoices."""
+        absolute from the base, so the neutral ``is_negative`` flag (captured
+        before the abs()) is what makes the split work inside an NC too."""
         positive, negative = [], []
         for it in (doc.get('items') or []):
             unit_price = it.get('unit_price') or 0.0
             price_total = it.get('price_total') or 0.0
-            if unit_price < 0 or price_total < 0:
+            if it.get('is_negative') or unit_price < 0 or price_total < 0:
                 negative.append(it)
             else:
                 positive.append(it)
