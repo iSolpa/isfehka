@@ -352,9 +352,10 @@ class HKADriver(models.AbstractModel):
         buyer = doc.get('buyer') or {}
         items = self._build_items(doc)
 
+        config = self.env.company.fe_configuration_id
         documento = {
             'codigoSucursalEmisor': doc.get('branch_code') or '',
-            'tipoSucursal': '1',
+            'tipoSucursal': (config and config.tipo_sucursal) or '1',
             'datosTransaccion': {
                 'tipoEmision': '01',
                 'tipoDocumento': doc.get('doc_type') or '01',
