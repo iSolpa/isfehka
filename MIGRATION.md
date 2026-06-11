@@ -63,6 +63,15 @@ rollback en la propia base); eliminarla es un paso manual post-verificación.
 
 ## Notas de paridad / decisiones
 
+- **Contadores (2026-06-12):** la base agrega `next_number_nc` (secuencia
+  separada para NC/ND) y `pos_config_id` (contador por punto/caja) como
+  columnas NUEVAS anulables. Los usuarios isfehka migrados quedan con ambas
+  vacías = contador único compartido, comportamiento 1.x intacto (matriz (b)
+  re-verificada 13/13 tras el cambio).
+- **destinoOperacion (2026-06-12):** ahora se deriva del tipo de documento
+  (exportación '03' → 2), no del país del cliente — el dato país demostró ser
+  no confiable en producción (extranjeros con país=PA). Para receptores con
+  país extranjero en ventas locales esto CORRIGE el destino respecto a 1.x.
 - **Descuento fantasma de pricelist NO portado** (defecto, A Brand #629): el
   driver 2.0 emite `precioUnitario = price_unit` real y descuento solo desde
   `line.discount` y líneas de descuento explícitas.
