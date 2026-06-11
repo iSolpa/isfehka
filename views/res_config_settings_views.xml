@@ -1,82 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Settings Action -->
-    <record id="action_isfehka_config" model="ir.actions.act_window">
-        <field name="name">Electronic Invoice Settings</field>
-        <field name="type">ir.actions.act_window</field>
-        <field name="res_model">res.config.settings</field>
-        <field name="view_mode">form</field>
-        <field name="target">inline</field>
-        <field name="context">{'module': 'isfehka'}</field>
-    </record>
-
-    <!-- Settings View -->
+    <!-- HKA credentials on the single neutral FE settings page: injected into
+         the base's driver extension anchor (isfe_settings_extra). -->
     <record id="res_config_settings_view_form_isfehka" model="ir.ui.view">
         <field name="name">res.config.settings.view.form.inherit.isfehka</field>
         <field name="model">res.config.settings</field>
-        <field name="priority" eval="90"/>
-        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="inherit_id" ref="isfe_base.res_config_settings_view_form_isfe"/>
         <field name="arch" type="xml">
-            <xpath expr="//form" position="inside">
-                <div class="app_settings_block" data-string="Electronic Invoicing" data-key="isfehka">
-                    <h2>HKA Electronic Invoicing</h2>
-                    <div class="row mt16 o_settings_container">
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_left_pane">
-                                <field name="isfehka_test_mode"/>
-                            </div>
-                            <div class="o_setting_right_pane">
-                                <label for="isfehka_test_mode"/>
-                                <div class="text-muted">
-                                    Usar ambiente de pruebas de HKA
-                                </div>
-                                <div class="mt8">
-                                    <field name="isfehka_test_mode"/>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_right_pane">
-                                <label for="isfehka_default_tipo_documento"/>
-                                <div class="text-muted">
-                                    Tipo de documento por defecto para facturas generadas desde ventas/facturas
-                                </div>
-                                <div class="mt8">
-                                    <field name="isfehka_default_tipo_documento"/>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mt16 o_settings_container">
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_right_pane">
-                                <span class="o_form_label">HKA Credentials</span>
-                                <div class="text-muted">
-                                    Configure credentials for HKA service
-                                </div>
-                                <div class="content-group">
-                                    <div class="row mt16">
-                                        <label class="col-lg-3 o_light_label" for="isfehka_token_empresa"/>
-                                        <field name="isfehka_token_empresa" password="True"/>
-                                    </div>
-                                    <div class="row mt16">
-                                        <label class="col-lg-3 o_light_label" for="isfehka_token_password"/>
-                                        <field name="isfehka_token_password" password="True"/>
-                                    </div>
-                                    <div class="row mt16">
-                                        <label class="col-lg-3 o_light_label" for="isfehka_wsdl_url"/>
-                                        <field name="isfehka_wsdl_url"/>
-                                    </div>
-                                    <div class="row mt16">
-                                        <label class="col-lg-3 o_light_label" for="isfehka_next_number"/>
-                                        <field name="isfehka_next_number" class="o_field_char"/>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <xpath expr="//block[@name='isfe_settings_extra']" position="inside">
+                <setting string="HKA Token Empresa"
+                         help="Token provisto por The Factory HKA para identificar la empresa.">
+                    <field name="hka_token_empresa" password="True"/>
+                </setting>
+                <setting string="HKA Token Password"
+                         help="Contraseña asociada al token de la empresa en HKA.">
+                    <field name="hka_token_password" password="True"/>
+                </setting>
+                <setting string="HKA WSDL URL"
+                         help="URL del servicio SOAP de HKA (demo o producción).">
+                    <field name="hka_wsdl_url"/>
+                </setting>
             </xpath>
         </field>
     </record>

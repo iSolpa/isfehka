@@ -1,50 +1,42 @@
 {
-    'name': 'Panama Electronic Invoicing - HKA Integration',
-    'version': '18.0.1.0.15',
+    'name': 'Panama Electronic Invoicing - HKA Driver',
+    'version': '18.0.2.0.0',
     'category': 'Accounting/Localizations',
-    'summary': 'Electronic Invoicing Integration for Panama with HKA',
+    'summary': 'The Factory HKA PAC driver for Panama electronic invoicing (isfe_base)',
     'description': """
-        Electronic Invoicing Integration for Panama
-        =========================================
-        
-        This module provides integration with HKA's electronic invoicing system for Panama.
+        Electronic Invoicing for Panama - The Factory HKA driver
+        =========================================================
+
+        Thin PAC driver on top of ``isfe_base`` (the neutral Panama FE layer).
+        This module contains ONLY what is HKA-specific:
+
+        * ``isfe.driver.hka``: serialization of the neutral FE document to
+          HKA's SOAP payload, submission/cancellation/document retrieval via
+          zeep, RUC verification (ConsultarRucDV).
+        * HKA credentials on ``isfe.configuration`` (driver-extension fields)
+          and their settings surface.
+
+        Everything else (FE fields on account.move, POS flow, partner fiscal
+        data, geo catalogs, views, security) lives in ``isfe_base``.
+
+        Upgrading from isfehka <= 1.x runs the bundled migration that renames
+        the legacy ``hka_*`` columns / ``isfehka.configuration`` data onto the
+        neutral ``fe_*`` / ``isfe.configuration`` structures, preserving CUFEs,
+        statuses, attachments and fiscal counters.
     """,
     'author': 'Independent Solutions',
     'website': 'https://www.isolpa.com',
     'license': 'OPL-1',
     'depends': [
-        'base',
-        'l10n_pa',
-        'stock',
-        'point_of_sale',
+        'isfe_base',
     ],
     'data': [
-        'security/isfehka_security.xml',
-        'security/ir.model.access.csv',
-        'data/res_country_state_data.xml',
-        'data/res_location_pa_data.xml',
         'data/isfehka_data.xml',
-        'wizard/account_move_cancel_reason_views.xml',
-        'views/res_company_views.xml',
         'views/res_config_settings_views.xml',
-        'views/res_partner_views.xml',
-        'views/account_move_views.xml',
-        'views/pos_config_views.xml',
-        'views/pos_payment_method_views.xml',
-        'report/account_move_report.xml',
-        'report/account_move_templates.xml',
-        'views/menu_views.xml',
     ],
-    # 'assets': {
-    #     'point_of_sale._assets_pos': [
-    #         'isfehka/static/src/js/pos_partner_extension.js',
-    #         'isfehka/static/src/xml/pos_partner_extension.xml',
-    #     ],
-    # },
     'external_dependencies': {
         'python': ['zeep'],
     },
-    #'images': ['static/description/icon.png'],
     'installable': True,
     'application': True,
     'auto_install': False,
