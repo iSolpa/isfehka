@@ -640,27 +640,22 @@ class AccountMove(models.Model):
             # Format numeric values according to HKA specifications
             cantidad = '{:.3f}'.format(line.quantity)  # N|13,3 format
             
-            # Determine the original price and discount amount
-            # Handle both explicit discounts (discount field) and implicit pricelist discounts
+            # Determine the original price and discount amount.
+            # The FE must mirror the legal invoice: a discount exists only when Odoo records
+            # one (explicit line.discount, or a discount-program/global/loyalty line handled
+            # by _is_discount_line). A price below MSRP via a `with_discount` pricelist is a
+            # price TIER, not a discount, so we must NOT infer one from lst_price — doing so
+            # fabricates a phantom discount that diverges from the legal Odoo invoice (which
+            # records price_unit net, discount 0). See task #629 /
+            # docs/isfehka-pricelist-phantom-discount-advisory.md.
             original_price = line.price_unit
             discount_amount = 0.0
-            
-            # First check if there's an explicit discount percentage
+
+            # Explicit discount only: price_unit is before discount; compute the discount amount.
             if line.discount:
-                # Explicit discount: price_unit is before discount, calculate discount amount
                 discount_amount = (line.price_unit * line.discount) / 100
                 _logger.debug(f"Line {line.id} has explicit discount: {line.discount}% on {line.price_unit}")
-            elif line.product_id and line.product_id.lst_price > 0:
-                # Check for implicit pricelist discount
-                # Compare price_unit (actual selling price) with product list price
-                list_price = line.product_id.lst_price
-                if line.price_unit < list_price:
-                    # Pricelist applied a discount
-                    original_price = list_price
-                    discount_amount = list_price - line.price_unit
-                    implicit_discount_pct = (discount_amount / list_price) * 100
-                    _logger.debug(f"Line {line.id} has implicit pricelist discount: {implicit_discount_pct:.2f}% (list: {list_price}, actual: {line.price_unit})")
-            
+
             precio_unitario = '{:.3f}'.format(original_price)
             precio_unitario_descuento = '{:.3f}'.format(discount_amount)
 
