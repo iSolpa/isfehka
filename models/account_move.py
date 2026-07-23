@@ -751,8 +751,11 @@ class AccountMove(models.Model):
         total_itbms = sum(float(item.get('valorITBMS', '0.00')) for item in items_data)
 
         # Calculate all discounts (global, loyalty, coupon)
+        # Use price_total (tax-inclusive) to match montoDescuento below and totalTodosItems,
+        # which is also tax-inclusive -- otherwise totalDescuento undercounts by the tax on
+        # the discount and DGI rejects the document for totalDescuento != sum(montoDescuento).
         discount_lines = self.invoice_line_ids.filtered(lambda l: self._is_discount_line(l))
-        total_discounts_amount = abs(sum(line.price_subtotal for line in discount_lines))
+        total_discounts_amount = abs(sum(line.price_total for line in discount_lines))
 
         rounding_amount = self.amount_total - sum(l.price_total for l in self.invoice_line_ids)
         total_discounts = total_discounts_amount
