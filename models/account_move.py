@@ -410,6 +410,29 @@ class AccountMove(models.Model):
         # If empty after sanitization, return default (also enforcing max length)
         return sanitized.strip() or 'Descuento'[:max_length]
 
+    def _sanitize_hka_phone(self, phone, max_length=15):
+        """Sanitize a phone number for HKA's telefono field.
+
+        The DGI/HKA telefono field is a free string in the WSDL but is validated
+        server-side (max length, effectively numeric). A raw phone with '+',
+        letters, extensions or that is too long makes DGI reject the WHOLE
+        document. The phone is NOT required (Consumidor Final sends ''), so we
+        clean conservatively and, if the result is not a plausible number, send
+        '' rather than fail the invoice.
+
+        Conservative strategy: keep digits only, cap at max_length, and blank
+        anything implausible (fewer than 7 digits). Panama numbers with a 507
+        country code pass through untouched; only genuine garbage is dropped.
+        """
+        import re
+        if not phone:
+            return ''
+        digits = re.sub(r'[^0-9]', '', phone)
+        # Too short to be a real phone (Panama local numbers are 7-8 digits) -> skip
+        if len(digits) < 7:
+            return ''
+        return digits[:max_length]
+
     def _get_panama_datetime_str(self, dt=None):
         """Convert datetime to Panama timezone and format for HKA.
         
@@ -549,7 +572,7 @@ class AccountMove(models.Model):
                 'nroIdentificacionExtranjero': partner.ruc,
                 'razonSocial': partner.name,
                 'correoElectronico1': partner.email or '',
-                'telefono1': partner.phone or '',
+                'telefono1': self._sanitize_hka_phone(partner.phone),
                 'pais': 'ZZ',
                 'paisOtro': partner.country_id.name or '',
             }
@@ -569,7 +592,7 @@ class AccountMove(models.Model):
             'distrito': partner.l10n_pa_distrito_id.name,
             'corregimiento': partner.l10n_pa_corregimiento_id.name,
             'correoElectronico1': partner.email or '',
-            'telefono1': partner.phone or '',
+            'telefono1': self._sanitize_hka_phone(partner.phone),
             'pais': 'PA',
         }
 
