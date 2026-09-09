@@ -472,7 +472,11 @@ class AccountMove(models.Model):
                     'puntoFacturacionFiscal': self._get_hka_pos_code(),
                     'naturalezaOperacion': self.naturaleza_operacion,
                     'tipoOperacion': '1',
-                    'destinoOperacion': '1' if self.partner_id.country_id.code == 'PA' else '2',
+                    # destinoOperacion describes where the operation occurs,
+                    # not the customer's nationality. A foreign customer may
+                    # receive a Panama internal invoice; only document 03 is
+                    # an export operation.
+                    'destinoOperacion': '2' if self.tipo_documento == '03' else '1',
                     'formatoCAFE': '1',
                     'entregaCAFE': '1',
                     'envioContenedor': '1',
