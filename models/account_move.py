@@ -181,12 +181,15 @@ class AccountMove(models.Model):
         # Validate required data before sending
         self._validate_hka_data()
 
-        # Get the next fiscal number if needed
+        # Get the next fiscal number if needed. Track what THIS call reserved so a failed
+        # send can return it to the pool (see _release_fiscal_number) instead of leaving a
+        # gap in the DGI sequence.
+        reserved_fiscal_number = False
         if not self.numero_documento_fiscal:
-            fiscal_number = self._get_next_fiscal_number()
-            if not fiscal_number:
+            reserved_fiscal_number = self._get_next_fiscal_number()
+            if not reserved_fiscal_number:
                 raise UserError(_('No se pudo obtener el próximo número fiscal.'))
-            self.numero_documento_fiscal = fiscal_number
+            self.numero_documento_fiscal = reserved_fiscal_number
 
         try:
             hka_service = self.env['hka.service']
@@ -268,6 +271,9 @@ class AccountMove(models.Model):
                 'hka_message': str(e)
             })
             self.env.cr.rollback()  # Rollback transaction to ensure draft state
+            # Return the reserved fiscal number to the pool so a rejected send does not
+            # leave a permanent gap in the sequence (must run AFTER the rollback above).
+            self._release_fiscal_number(reserved_fiscal_number)
             raise UserError(str(e))
 
     def button_cancel_hka(self):
@@ -420,18 +426,27 @@ class AccountMove(models.Model):
         clean conservatively and, if the result is not a plausible number, send
         '' rather than fail the invoice.
 
-        Conservative strategy: keep digits only, cap at max_length, and blank
-        anything implausible (fewer than 7 digits). Panama numbers with a 507
-        country code pass through untouched; only genuine garbage is dropped.
+        Strategy: strip separators to digits, drop a leading 507 country code, then
+        re-format to the Panamanian hyphenated form DGI expects (NNNN-NNNN mobile,
+        NNN-NNNN landline). If the result is not a plausible Panama number, send ''
+        (the field is optional) rather than a value DGI will reject.
         """
         import re
         if not phone:
             return ''
         digits = re.sub(r'[^0-9]', '', phone)
-        # Too short to be a real phone (Panama local numbers are 7-8 digits) -> skip
-        if len(digits) < 7:
-            return ''
-        return digits[:max_length]
+        # Drop a Panama country code if present (507 + 7 or 8 local digits).
+        if digits.startswith('507') and len(digits) in (10, 11):
+            digits = digits[3:]
+        # DGI/HKA rejects a digits-only value ("El campo telefono1 es invalido"); it
+        # expects the Panamanian hyphenated format (e.g. 6462-2875 mobile, 774-1234
+        # landline), matching the emisor phone in every accepted FE.
+        if len(digits) == 8:
+            return f'{digits[:4]}-{digits[4:]}'
+        if len(digits) == 7:
+            return f'{digits[:3]}-{digits[3:]}'
+        # Not a plausible Panama number -> omit rather than fail the whole document.
+        return ''
 
     def _get_panama_datetime_str(self, dt=None):
         """Convert datetime to Panama timezone and format for HKA.
@@ -549,12 +564,41 @@ class AccountMove(models.Model):
         
         return next_number
 
+    def _release_fiscal_number(self, reserved):
+        """Return a reserved fiscal number to the pool after a FAILED HKA send, so a
+        rejected FE does not leave a permanent gap in the DGI sequence. Only reclaims if
+        the sequence has not advanced past our reservation (no other document took the
+        next number); otherwise the gap is unavoidable and left for manual annulment."""
+        if not reserved:
+            return
+        try:
+            self.env.cr.execute(
+                "SELECT value FROM ir_config_parameter WHERE key = 'isfehka.next_number' FOR UPDATE NOWAIT"
+            )
+            row = self.env.cr.fetchone()
+            if row and int(row[0]) == int(reserved) + 1:
+                self.env.cr.execute(
+                    "UPDATE ir_config_parameter SET value = %s WHERE key = 'isfehka.next_number'",
+                    [str(int(reserved)).zfill(10)],
+                )
+                self.env.cr.commit()
+        except Exception as e:
+            self.env.cr.rollback()
+            _logger.warning('Could not release reserved fiscal number %s: %s', reserved, e)
+
     def _prepare_hka_client_data(self):
         """Prepare client data for HKA"""
         partner = self.partner_id
         
-        # Special case for Consumidor Final
-        if partner.ruc == 'CF':
+        # Special case for Consumidor Final.
+        # Also route a '02' (consumidor final) with an INCOMPLETE address here: DGI does
+        # not require RUC/codigoUbicacion for '02', and an incomplete location would build
+        # an invalid codigoUbicacion (e.g. "0-0-0") that DGI rejects. Contribuyentes and
+        # other types keep the full-data path below and must supply a complete location.
+        _loc_complete = bool(
+            partner.state_id and partner.l10n_pa_distrito_id and partner.l10n_pa_corregimiento_id
+        )
+        if partner.ruc == 'CF' or (partner.tipo_cliente_fe == '02' and not _loc_complete):
             return {
                 'tipoClienteFE': '02',
                 'razonSocial': partner.name,
