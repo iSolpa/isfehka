@@ -375,7 +375,7 @@ class HKADriver(models.AbstractModel):
                 'tipoVenta': '',
                 'fechaEmision': fecha_str,
                 'fechaSalida': fecha_str,
-                'cliente': self._build_client(buyer),
+                'cliente': self._build_client(buyer, doc.get('doc_type') or '01'),
             },
             'listaItems': {
                 'item': items,
@@ -420,7 +420,15 @@ class HKADriver(models.AbstractModel):
             return '%s-%s' % (digits[:3], digits[3:])
         return ''
 
-    def _build_client(self, buyer):
+    def _hka_country_name(self, code):
+        """Full country name in Spanish when a Spanish language is active (HKA catalog)."""
+        country = self.env['res.country'].search([('code', '=', code)], limit=1) if code else False
+        if not country:
+            return ''
+        lang = self.env['res.lang'].search([('code', '=like', 'es%'), ('active', '=', True)], limit=1)
+        return (country.with_context(lang=lang.code) if lang else country).name or ''
+
+    def _build_client(self, buyer, doc_type='01'):
         """HKA ``cliente`` block from the neutral buyer party."""
         ruc = (buyer.get('ruc') or '').strip()
         # Consumidor Final. Also route a '02' here when its location is incomplete (it
@@ -441,15 +449,24 @@ class HKADriver(models.AbstractModel):
             }
         # Extranjero
         if buyer.get('tipo_cliente_fe') == '04':
+            tipo_id = buyer.get('tipo_identificacion') or '99'
+            code = buyer.get('country_code') or ''
             return {
                 'tipoClienteFE': '04',
-                'tipoIdentificacion': '99',
+                'tipoIdentificacion': tipo_id,
                 'nroIdentificacionExtranjero': ruc,
+                # HKA accepts paisExtranjero only for a passport, as the full country name.
+                **({'paisExtranjero': self._hka_country_name(code)}
+                   if tipo_id == '01' and code and code != 'PA' else {}),
                 'razonSocial': buyer.get('name') or '',
                 'correoElectronico1': buyer.get('email') or '',
                 'telefono1': self._sanitize_phone(buyer.get('phone')),
-                'pais': 'ZZ',
-                'paisOtro': buyer.get('country_name') or '',
+                'direccion': buyer.get('street') or '',
+                # pais must be 'PA' when destinoOperacion=1; only an export (doc 03,
+                # destino 2) carries the buyer's country ('ZZ' + paisOtro if uncatalogued).
+                **({'pais': 'PA'} if doc_type != '03' else (
+                    {'pais': code} if code and code != 'PA'
+                    else {'pais': 'ZZ', 'paisOtro': buyer.get('country_name') or ''})),
             }
         # Regular contribuyente — requires a real check digit. Never send a blank/'00'
         # digitoVerificadorRUC; fail with a readable error instead.
