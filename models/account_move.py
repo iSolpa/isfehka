@@ -626,12 +626,14 @@ class AccountMove(models.Model):
                 'correoElectronico1': partner.email or '',
                 'telefono1': self._sanitize_hka_phone(partner.phone),
                 'direccion': partner.street or '',
-                # paisExtranjero = the foreign customer's country; pais is 'PA' for an
-                # operation inside Panama and the destination country only for an export
-                # (doc 03). DGI-accepted evidence: A Group FE #30 (iDoc=01, iDest=1,
-                # iTipoRec=04, dPaisExt=PE, cPaisRec=PA).
-                'paisExtranjero': partner.country_id.code or '',
-                'pais': (partner.country_id.code or 'ZZ') if self.tipo_documento == '03' else 'PA',
+                # pais must be 'PA' when destinoOperacion=1 (operation inside Panama) and the
+                # destination country when it is an export (doc 03, destino=2); if the
+                # country has no code, HKA takes 'ZZ' + paisOtro. paisExtranjero is NOT sent:
+                # HKA only accepts it with tipoIdentificacion=01 (Pasaporte, full country
+                # name) and rejects it with 109 for '99' (A Group INV/2026/00014).
+                **({'pais': 'PA'} if self.tipo_documento != '03' else (
+                    {'pais': partner.country_id.code} if partner.country_id.code
+                    else {'pais': 'ZZ', 'paisOtro': partner.country_id.name or ''})),
             }
         
         # Regular case — requires a real check digit. Never send str(False) ("False"),
