@@ -598,7 +598,11 @@ class AccountMove(models.Model):
         _loc_complete = bool(
             partner.state_id and partner.l10n_pa_distrito_id and partner.l10n_pa_corregimiento_id
         )
-        if partner.ruc == 'CF' or (partner.tipo_cliente_fe == '02' and not _loc_complete):
+        # A '02' without a check digit (dv) also goes here: its RUC/cedula can't be sent
+        # without a valid dv, and consumidor final doesn't need one.
+        if partner.ruc == 'CF' or (
+            partner.tipo_cliente_fe == '02' and (not _loc_complete or not partner.dv)
+        ):
             return {
                 'tipoClienteFE': '02',
                 'razonSocial': partner.name,
@@ -621,7 +625,11 @@ class AccountMove(models.Model):
                 'paisOtro': partner.country_id.name or '',
             }
         
-        # Regular case
+        # Regular case — requires a real check digit. Never send str(False) ("False"),
+        # which DGI rejects as an out-of-range digitoVerificadorRUC.
+        if not partner.dv:
+            raise UserError(_('El dígito verificador (DV) del cliente %s es requerido '
+                              'para la factura electrónica.') % partner.name)
         codigo_ubicacion = f"{partner.state_id.code or '0'}-{partner.l10n_pa_distrito_id.code or '0'}-{partner.l10n_pa_corregimiento_id.code or '0'}"
         
         return {
