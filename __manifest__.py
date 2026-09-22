@@ -18,6 +18,7 @@
         'stock',
         'point_of_sale',
         'payment',
+        'mail',
     ],
     'data': [
         'security/isfehka_security.xml',
@@ -25,6 +26,7 @@
         'data/res_country_state_data.xml',
         'data/res_location_pa_data.xml',
         'data/isfehka_data.xml',
+        'data/isfehka_fe_notice_data.xml',
         'wizard/account_move_cancel_reason_views.xml',
         'wizard/account_move_register_hka_views.xml',
         'views/res_company_views.xml',
@@ -38,6 +40,7 @@
         'report/account_move_report.xml',
         'report/account_move_templates.xml',
         'views/menu_views.xml',
+        'views/fe_notice_views.xml',
     ],
     # 'assets': {
     #     'point_of_sale._assets_pos': [

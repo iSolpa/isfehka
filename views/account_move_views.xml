@@ -107,6 +107,8 @@
                 <field name="hka_cufe"/>
                 <filter string="Enviado a HKA" name="hka_sent" domain="[('hka_status', '=', 'sent')]"/>
                 <filter string="Error HKA" name="hka_error" domain="[('hka_status', '=', 'error')]"/>
+                <filter string="FE pendiente de envío" name="hka_pending"
+                        domain="[('state', '=', 'posted'), ('move_type', 'in', ('out_invoice', 'out_refund')), ('hka_status', 'in', ('draft', 'error')), ('tipo_documento', '!=', False)]"/>
                 <filter string="Anulado en HKA" name="hka_cancelled" domain="[('hka_status', '=', 'cancelled')]"/>
             </field>
             <group position="inside">

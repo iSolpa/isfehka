@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Invoices (default account.move search view) also gets the pending filter. -->
+    <record id="view_account_invoice_filter_isfehka_pending" model="ir.ui.view">
+        <field name="name">account.invoice.select.isfehka.pending</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_invoice_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <filter string="FE pendiente de envío" name="hka_pending"
+                        domain="[('state', '=', 'posted'), ('move_type', 'in', ('out_invoice', 'out_refund')), ('hka_status', 'in', ('draft', 'error')), ('tipo_documento', '!=', False)]"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_isfehka_fe_pending" model="ir.actions.act_window">
+        <field name="name">FE pendientes de envío</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="account.view_out_invoice_tree"/>
+        <field name="search_view_id" ref="account.view_account_invoice_filter"/>
+        <field name="context">{'search_default_hka_pending': 1, 'default_move_type': 'out_invoice'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay facturas con FE pendiente.</p>
+            <p>Facturas confirmadas cuya FE falló o no se envió. Ábrala y use "Enviar a HKA".</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_isfehka_fe_pending"
+              name="FE pendientes de envío"
+              parent="menu_isfehka_root"
+              action="action_isfehka_fe_pending"
+              sequence="10"/>
+</odoo>

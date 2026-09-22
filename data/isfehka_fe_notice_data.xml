@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Opt-in: ships INACTIVE. Activate in Ajustes > Técnico > Acciones planificadas. -->
+    <record id="ir_cron_fe_notice" model="ir.cron">
+        <field name="name">Facturación Electrónica: aviso de FE pendientes</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_isfehka_fe_notice()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="False"/>
+    </record>
+</odoo>
