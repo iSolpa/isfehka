@@ -568,11 +568,11 @@ class AccountMove(models.Model):
         if partner.tipo_cliente_fe == '04':
             return {
                 'tipoClienteFE': '04',
-                'tipoIdentificacion': partner.tipo_identificacion_ext or '99',
+                'tipoIdentificacion': partner.tipo_identificacion or '99',
                 'nroIdentificacionExtranjero': partner.ruc,
                 # HKA accepts paisExtranjero only for a passport, as the full country name.
                 **({'paisExtranjero': self._hka_country_name(partner.country_id)}
-                   if partner.tipo_identificacion_ext == '01' and partner.country_id else {}),
+                   if partner.tipo_identificacion == '01' and partner.country_id else {}),
                 'razonSocial': partner.name,
                 'correoElectronico1': partner.email or '',
                 'telefono1': self._sanitize_hka_phone(partner.phone),
@@ -1061,7 +1061,7 @@ class AccountMove(models.Model):
                     errors.append(_('La razón social del cliente es requerida.'))
                 if not partner.country_id:
                     errors.append(_('El país es requerido.'))
-                if not partner.tipo_identificacion_ext:
+                if not partner.tipo_identificacion:
                     errors.append(_('El tipo de identificación del cliente extranjero es requerido.'))
                 
                 if errors:

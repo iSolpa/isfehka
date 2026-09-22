@@ -10,7 +10,7 @@
                 <field name="dv" placeholder="DV"/>
                 <field name="tipo_contribuyente"/>
                 <field name="tipo_cliente_fe"/>
-                <field name="tipo_identificacion_ext"
+                <field name="tipo_identificacion"
                        invisible="tipo_cliente_fe != '04'"
                        required="tipo_cliente_fe == '04'"/>
                 <button name="action_verify_ruc" 
