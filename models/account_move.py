@@ -625,8 +625,13 @@ class AccountMove(models.Model):
                 'razonSocial': partner.name,
                 'correoElectronico1': partner.email or '',
                 'telefono1': self._sanitize_hka_phone(partner.phone),
-                'pais': 'ZZ',
-                'paisOtro': partner.country_id.name or '',
+                'direccion': partner.street or '',
+                # paisExtranjero = the foreign customer's country; pais is 'PA' for an
+                # operation inside Panama and the destination country only for an export
+                # (doc 03). DGI-accepted evidence: A Group FE #30 (iDoc=01, iDest=1,
+                # iTipoRec=04, dPaisExt=PE, cPaisRec=PA).
+                'paisExtranjero': partner.country_id.code or '',
+                'pais': (partner.country_id.code or 'ZZ') if self.tipo_documento == '03' else 'PA',
             }
         
         # Regular case — requires a real check digit. Never send str(False) ("False"),
