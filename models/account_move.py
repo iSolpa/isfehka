@@ -173,12 +173,15 @@ class AccountMove(models.Model):
         self._validate_hka_data()
         self._get_hka_configuration()
 
-        # Get the next fiscal number if needed
+        # Get the next fiscal number if needed. Track what THIS call reserved so a failed
+        # send can return it to the pool (see _release_fiscal_number) instead of leaving a
+        # gap in the DGI sequence.
+        reserved_fiscal_number = False
         if not self.numero_documento_fiscal:
-            fiscal_number = self._get_next_fiscal_number()
-            if not fiscal_number:
+            reserved_fiscal_number = self._get_next_fiscal_number()
+            if not reserved_fiscal_number:
                 raise UserError(_('No se pudo obtener el próximo número fiscal.'))
-            self.numero_documento_fiscal = fiscal_number
+            self.numero_documento_fiscal = reserved_fiscal_number
 
         try:
             hka_service = self.env['hka.service'].with_company(self.company_id)
@@ -279,6 +282,9 @@ class AccountMove(models.Model):
                 'hka_message': str(e)
             })
             self.env.cr.rollback()  # Rollback transaction to ensure draft state
+            # Return the reserved fiscal number to the pool so a rejected send does not
+            # leave a permanent gap in the sequence (must run AFTER the rollback above).
+            self._release_fiscal_number(reserved_fiscal_number)
             raise UserError(str(e))
 
     def button_register_hka_document(self):
@@ -484,12 +490,62 @@ class AccountMove(models.Model):
         config = self._get_hka_configuration()
         return config.get_and_increment_next_number()
 
+    def _release_fiscal_number(self, reserved):
+        """See isfehka.configuration.release_reserved_number."""
+        if not reserved:
+            return
+        try:
+            self._get_hka_configuration().release_reserved_number(reserved)
+        except Exception as e:
+            _logger.warning('Could not release reserved fiscal number %s: %s', reserved, e)
+
+    def _sanitize_hka_phone(self, phone, max_length=15):
+        """Sanitize a phone number for HKA's telefono field.
+
+        The DGI/HKA telefono field is a free string in the WSDL but is validated
+        server-side (max length, effectively numeric). A raw phone with '+',
+        letters, extensions or that is too long makes DGI reject the WHOLE
+        document. The phone is NOT required (Consumidor Final sends ''), so we
+        clean conservatively and, if the result is not a plausible number, send
+        '' rather than fail the invoice.
+
+        Strategy: strip separators to digits, drop a leading 507 country code, then
+        re-format to the Panamanian hyphenated form DGI expects (NNNN-NNNN mobile,
+        NNN-NNNN landline). If the result is not a plausible Panama number, send ''
+        (the field is optional) rather than a value DGI will reject.
+        """
+        import re
+        if not phone:
+            return ''
+        digits = re.sub(r'[^0-9]', '', phone)
+        # Drop a Panama country code if present (507 + 7 or 8 local digits).
+        if digits.startswith('507') and len(digits) in (10, 11):
+            digits = digits[3:]
+        # DGI/HKA rejects a digits-only value ("El campo telefono1 es invalido"); it
+        # expects the Panamanian hyphenated format (e.g. 6462-2875 mobile, 774-1234
+        # landline), matching the emisor phone in every accepted FE.
+        if len(digits) == 8:
+            return f'{digits[:4]}-{digits[4:]}'
+        if len(digits) == 7:
+            return f'{digits[:3]}-{digits[3:]}'
+        # Not a plausible Panama number -> omit rather than fail the whole document.
+        return ''
+
     def _prepare_hka_client_data(self):
         """Prepare client data for HKA"""
         partner = self.partner_id
         
-        # Special case for Consumidor Final
-        if partner.ruc == 'CF':
+        # Special case for Consumidor Final.
+        # Also route a '02' (consumidor final) here when its location is INCOMPLETE (an
+        # incomplete location builds an invalid codigoUbicacion like "0-0-0" that DGI
+        # rejects) or when it has no check digit (a RUC/cedula can't be sent without a
+        # valid dv, and consumidor final doesn't need one).
+        _loc_complete = bool(
+            partner.state_id and partner.l10n_pa_distrito_id and partner.l10n_pa_corregimiento_id
+        )
+        if partner.ruc == 'CF' or (
+            partner.tipo_cliente_fe == '02' and (not _loc_complete or not partner.dv)
+        ):
             return {
                 'tipoClienteFE': '02',
                 'razonSocial': partner.name,
@@ -507,12 +563,16 @@ class AccountMove(models.Model):
                 'nroIdentificacionExtranjero': partner.ruc,
                 'razonSocial': partner.name,
                 'correoElectronico1': partner.email or '',
-                'telefono1': partner.phone or '',
+                'telefono1': self._sanitize_hka_phone(partner.phone),
                 'pais': 'ZZ',
                 'paisOtro': partner.country_id.name or '',
             }
         
-        # Regular case
+        # Regular case — requires a real check digit. Never send str(False) ("False"),
+        # which DGI rejects as an out-of-range digitoVerificadorRUC.
+        if not partner.dv:
+            raise UserError(_('El dígito verificador (DV) del cliente %s es requerido '
+                              'para la factura electrónica.') % partner.name)
         codigo_ubicacion = f"{partner.state_id.code or '0'}-{partner.l10n_pa_distrito_id.code or '0'}-{partner.l10n_pa_corregimiento_id.code or '0'}"
         
         return {
@@ -527,7 +587,7 @@ class AccountMove(models.Model):
             'distrito': partner.l10n_pa_distrito_id.name,
             'corregimiento': partner.l10n_pa_corregimiento_id.name,
             'correoElectronico1': partner.email or '',
-            'telefono1': partner.phone or '',
+            'telefono1': self._sanitize_hka_phone(partner.phone),
             'pais': 'PA',
         }
 

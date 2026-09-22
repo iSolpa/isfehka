@@ -1,6 +1,9 @@
+import logging
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError, UserError
 
+
+_logger = logging.getLogger(__name__)
 
 class IsfehkaConfiguration(models.Model):
     _name = 'isfehka.configuration'
@@ -90,3 +93,24 @@ class IsfehkaConfiguration(models.Model):
         self.env.cr.commit()
         self.invalidate_recordset(['next_number'])
         return next_number
+
+    def release_reserved_number(self, reserved):
+        """Return a number reserved by get_and_increment_next_number after a FAILED HKA
+        send, so a rejected FE does not leave a permanent gap in the DGI sequence. Only
+        reclaims if the sequence has not advanced past the reservation (nobody took the
+        next number); otherwise the gap is unavoidable and left for manual annulment."""
+        self.ensure_one()
+        if not reserved:
+            return
+        table = self._table
+        try:
+            self.env.cr.execute(f"SELECT next_number FROM {table} WHERE id = %s FOR UPDATE NOWAIT", [self.id])
+            row = self.env.cr.fetchone()
+            if row and row[0] and row[0].isdigit() and int(row[0]) == int(reserved) + 1:
+                self.env.cr.execute(f"UPDATE {table} SET next_number = %s WHERE id = %s",
+                                    [str(int(reserved)).zfill(10), self.id])
+                self.env.cr.commit()
+                self.invalidate_recordset(['next_number'])
+        except Exception as e:
+            self.env.cr.rollback()
+            _logger.warning('Could not release reserved fiscal number %s: %s', reserved, e)

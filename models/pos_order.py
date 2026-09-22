@@ -33,6 +33,13 @@ class PosOrder(models.Model):
         if not moves:
             return moves
 
+        # Record the sale durably BEFORE attempting the electronic invoice. A failed FE
+        # submission must never roll back (and lose) the POS order. With the order and its
+        # posted invoice committed here, any cr.rollback() inside _send_to_hka can only
+        # unwind the FE-send's own writes (its reserved fiscal number is reclaimed by
+        # _release_fiscal_number) — never the sale itself.
+        self.env.cr.commit()
+
         # Get the actual invoice record — fallback if action_post() auto-send didn't fire
         invoice = moves if isinstance(moves, models.Model) else self.account_move
         if invoice:
@@ -50,30 +57,19 @@ class PosOrder(models.Model):
                     invoice._sync_cufe_to_pos_orders()
                 
             except Exception as e:
+                # A failed FE does NOT discard the sale. Keep the POS order and its posted
+                # invoice (flagged hka_status='error') so revenue stays recorded and the FE
+                # can be resent from the back office. Do not unlink, reset state, or raise.
                 error_msg = str(e)
                 _logger.error(
-                    'Failed to send invoice %s to HKA: %s',
-                    invoice.name or 'Unknown',
-                    error_msg
+                    'HKA submission failed for invoice %s (kept for resend): %s',
+                    (invoice.name if invoice.exists() else 'Unknown'),
+                    error_msg,
                 )
-                # Mark invoice as error and store the message
-                invoice.write({
-                    'hka_status': 'error',
-                    'hka_message': error_msg
-                })
-                # Delete the invoice since it failed HKA validation
-                invoice.button_draft()
-                invoice.button_cancel()
-                invoice.unlink()
-                # Reset POS order state
-                self.write({
-                    'state': 'draft',
-                    'account_move': False,
-                })
-                # Raise error to prevent completion
-                raise models.ValidationError(_(
-                    'Error al enviar la factura a HKA. Por favor contacte al administrador.\n\n'
-                    'Detalles: %s'
-                ) % error_msg)
-        
+                if invoice.exists():
+                    invoice.write({
+                        'hka_status': 'error',
+                        'hka_message': error_msg,
+                    })
+
         return moves
