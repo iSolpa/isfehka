@@ -572,7 +572,8 @@ class AccountMove(models.Model):
                 'nroIdentificacionExtranjero': partner.ruc,
                 # HKA accepts paisExtranjero only for a passport, as the full country name.
                 **({'paisExtranjero': self._hka_country_name(partner.country_id)}
-                   if partner.tipo_identificacion == '01' and partner.country_id else {}),
+                   if partner.tipo_identificacion == '01' and partner.country_id
+                      and partner.country_id.code != 'PA' else {}),
                 'razonSocial': partner.name,
                 'correoElectronico1': partner.email or '',
                 'telefono1': self._sanitize_hka_phone(partner.phone),
