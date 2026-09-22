@@ -31,6 +31,13 @@ class ResPartner(models.Model):
     ], string='Tipo de Cliente FE',
         help='Tipo de receptor de la Factura Electrónica')
 
+    tipo_identificacion_ext = fields.Selection([
+        ('01', 'Pasaporte'),
+        ('02', 'Número Tributario'),
+        ('99', 'Otro')
+    ], string='Tipo de Identificación', default='01',
+        help='Tipo del documento de identidad del cliente Extranjero (va en el campo RUC)')
+
     ruc_verified = fields.Boolean(
         string='RUC Verificado',
         default=False,
@@ -79,17 +86,26 @@ class ResPartner(models.Model):
     @api.onchange('tipo_contribuyente', 'ruc')
     def _onchange_contribuyente_data(self):
         """Update tipo_cliente_fe when tipo_contribuyente or RUC changes"""
+        if self.tipo_cliente_fe == '04':
+            return
         if self.tipo_contribuyente == '2' or (self.tipo_contribuyente == '1' and self.ruc):
             self.tipo_cliente_fe = '01'  # Contribuyente
         elif self.tipo_cliente_fe == '01':
             self.tipo_cliente_fe = '02'  # Default back to Consumidor Final
 
-    @api.constrains('ruc')
+    @api.constrains('ruc', 'tipo_cliente_fe')
     def _check_ruc_format(self):
         """Check RUC format, allowing special case for Consumidor Final"""
         for partner in self:
             if partner.ruc:
                 if partner.ruc == 'CF':  # Special case for Consumidor Final
+                    continue
+                if partner.tipo_cliente_fe == '04':
+                    # Foreign ID (passport / foreign tax number): letters allowed.
+                    ext_clean = partner.ruc.replace('-', '').replace(' ', '')
+                    if not ext_clean.isalnum() or len(ext_clean) > 20:
+                        raise ValidationError(_('La identificación extranjera debe ser alfanumérica '
+                                                '(letras, números, guiones), máximo 20 caracteres'))
                     continue
                 # Remove hyphens and spaces for validation
                 ruc_clean = partner.ruc.replace('-', '').replace(' ', '')

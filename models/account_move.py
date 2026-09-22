@@ -535,6 +535,11 @@ class AccountMove(models.Model):
         # Not a plausible Panama number -> omit rather than fail the whole document.
         return ''
 
+    def _hka_country_name(self, country):
+        """Full country name in Spanish when a Spanish language is active (HKA catalog)."""
+        lang = self.env['res.lang'].search([('code', '=like', 'es%'), ('active', '=', True)], limit=1)
+        return (country.with_context(lang=lang.code) if lang else country).name or ''
+
     def _prepare_hka_client_data(self):
         """Prepare client data for HKA"""
         partner = self.partner_id
@@ -563,13 +568,21 @@ class AccountMove(models.Model):
         if partner.tipo_cliente_fe == '04':
             return {
                 'tipoClienteFE': '04',
-                'tipoIdentificacion': '99',  # Default for Extranjero
+                'tipoIdentificacion': partner.tipo_identificacion_ext or '99',
                 'nroIdentificacionExtranjero': partner.ruc,
+                # HKA accepts paisExtranjero only for a passport, as the full country name.
+                **({'paisExtranjero': self._hka_country_name(partner.country_id)}
+                   if partner.tipo_identificacion_ext == '01' and partner.country_id else {}),
                 'razonSocial': partner.name,
                 'correoElectronico1': partner.email or '',
                 'telefono1': self._sanitize_hka_phone(partner.phone),
-                'pais': 'ZZ',
-                'paisOtro': partner.country_id.name or '',
+                'direccion': partner.street or '',
+                # pais must be 'PA' when destinoOperacion=1 (operation inside Panama) and the
+                # destination country when it is an export (doc 03, destino=2); if the
+                # country has no code, HKA takes 'ZZ' + paisOtro.
+                **({'pais': 'PA'} if self.tipo_documento != '03' else (
+                    {'pais': partner.country_id.code} if partner.country_id.code
+                    else {'pais': 'ZZ', 'paisOtro': partner.country_id.name or ''})),
             }
         
         # Regular case — requires a real check digit. Never send str(False) ("False"),
@@ -1020,7 +1033,8 @@ class AccountMove(models.Model):
             errors.append(_('La naturaleza de operación es requerida para enviar a HKA.'))
 
         # Validate partner RUC is verified
-        if not partner.ruc_verified:
+        # Extranjero has no DGI registry to verify against; it is validated below instead.
+        if not partner.ruc_verified and partner.tipo_cliente_fe != '04':
             errors.append(_('El RUC del cliente debe estar verificado antes de enviar a HKA.'))
 
         # Validate credit note specific data
@@ -1047,6 +1061,8 @@ class AccountMove(models.Model):
                     errors.append(_('La razón social del cliente es requerida.'))
                 if not partner.country_id:
                     errors.append(_('El país es requerido.'))
+                if not partner.tipo_identificacion_ext:
+                    errors.append(_('El tipo de identificación del cliente extranjero es requerido.'))
                 
                 if errors:
                     raise ValidationError('\n'.join(errors))

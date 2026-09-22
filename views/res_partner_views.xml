@@ -10,11 +10,14 @@
                 <field name="dv" placeholder="DV"/>
                 <field name="tipo_contribuyente"/>
                 <field name="tipo_cliente_fe"/>
+                <field name="tipo_identificacion_ext"
+                       invisible="tipo_cliente_fe != '04'"
+                       required="tipo_cliente_fe == '04'"/>
                 <button name="action_verify_ruc" 
                         type="object" 
                         string="Verificar RUC" 
                         class="oe_highlight"
-                        invisible="ruc_verified"/>
+                        invisible="ruc_verified or tipo_cliente_fe == '04'"/>
                 <field name="ruc_verified" invisible="1"/>
                 <field name="ruc_verification_date" 
                        readonly="1" 
