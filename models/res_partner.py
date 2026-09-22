@@ -31,12 +31,13 @@ class ResPartner(models.Model):
     ], string='Tipo de Cliente FE',
         help='Tipo de receptor de la Factura Electrónica')
 
-    tipo_identificacion_ext = fields.Selection([
+    tipo_identificacion = fields.Selection([
         ('01', 'Pasaporte'),
-        ('02', 'Número Tributario'),
-        ('99', 'Otro')
-    ], string='Tipo de Identificación', default='01',
-        help='Tipo del documento de identidad del cliente Extranjero (va en el campo RUC)')
+        ('02', 'Número Tributario Extranjero'),
+        ('99', 'Otro'),
+    ], string='Tipo de Identificación Extranjera', default='01',
+       help='Para receptores Extranjero (tipo de cliente FE 04): qué documento '
+            'identifica al cliente. El número se captura en el campo RUC.')
 
     ruc_verified = fields.Boolean(
         string='RUC Verificado',
