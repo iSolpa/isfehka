@@ -403,11 +403,34 @@ class HKADriver(models.AbstractModel):
             }
         return documento
 
+    @staticmethod
+    def _sanitize_phone(phone):
+        """HKA/DGI ``telefono1``: Panama hyphenated form (NNNN-NNNN mobile, NNN-NNNN
+        landline). Raw or digits-only values make DGI reject the WHOLE document; the
+        field is optional, so an implausible number is sent as '' instead."""
+        import re
+        if not phone:
+            return ''
+        digits = re.sub(r'[^0-9]', '', phone)
+        if digits.startswith('507') and len(digits) in (10, 11):
+            digits = digits[3:]
+        if len(digits) == 8:
+            return '%s-%s' % (digits[:4], digits[4:])
+        if len(digits) == 7:
+            return '%s-%s' % (digits[:3], digits[3:])
+        return ''
+
     def _build_client(self, buyer):
         """HKA ``cliente`` block from the neutral buyer party."""
         ruc = (buyer.get('ruc') or '').strip()
-        # Consumidor Final
-        if ruc.upper() == 'CF':
+        # Consumidor Final. Also route a '02' here when its location is incomplete (it
+        # would build codigoUbicacion "0-0-0", which DGI rejects) or when it has no check
+        # digit (a RUC/cedula can't be sent without a valid dv; '02' doesn't need one).
+        loc_complete = bool(buyer.get('state') and buyer.get('distrito') and buyer.get('corregimiento'))
+        dv = str(buyer.get('dv') or '').strip()
+        if ruc.upper() == 'CF' or (
+            buyer.get('tipo_cliente_fe') == '02' and (not loc_complete or not dv)
+        ):
             return {
                 'tipoClienteFE': '02',
                 'razonSocial': buyer.get('name') or '',
@@ -424,11 +447,15 @@ class HKADriver(models.AbstractModel):
                 'nroIdentificacionExtranjero': ruc,
                 'razonSocial': buyer.get('name') or '',
                 'correoElectronico1': buyer.get('email') or '',
-                'telefono1': buyer.get('phone') or '',
+                'telefono1': self._sanitize_phone(buyer.get('phone')),
                 'pais': 'ZZ',
                 'paisOtro': buyer.get('country_name') or '',
             }
-        # Regular contribuyente
+        # Regular contribuyente — requires a real check digit. Never send a blank/'00'
+        # digitoVerificadorRUC; fail with a readable error instead.
+        if not dv:
+            raise UserError(_('El dígito verificador (DV) del cliente %s es requerido '
+                              'para la factura electrónica.') % (buyer.get('name') or ''))
         state = buyer.get('state') or {}
         distrito = buyer.get('distrito') or {}
         corregimiento = buyer.get('corregimiento') or {}
@@ -440,7 +467,7 @@ class HKADriver(models.AbstractModel):
             'tipoClienteFE': buyer.get('tipo_cliente_fe') or '01',
             'tipoContribuyente': buyer.get('tipo_contribuyente') or '1',
             'numeroRUC': ruc,
-            'digitoVerificadorRUC': str(buyer.get('dv') or '').zfill(2),
+            'digitoVerificadorRUC': dv.zfill(2),
             'razonSocial': buyer.get('name') or '',
             'direccion': buyer.get('street') or '',
             'codigoUbicacion': codigo_ubicacion,
@@ -448,7 +475,7 @@ class HKADriver(models.AbstractModel):
             'distrito': distrito.get('name') or '',
             'corregimiento': corregimiento.get('name') or '',
             'correoElectronico1': buyer.get('email') or '',
-            'telefono1': buyer.get('phone') or '',
+            'telefono1': self._sanitize_phone(buyer.get('phone')),
             'pais': 'PA',
         }
 

@@ -1,6 +1,6 @@
 {
     'name': 'Panama Electronic Invoicing - HKA Driver',
-    'version': '18.0.2.0.0',
+    'version': '18.0.2.0.1',
     'category': 'Accounting/Localizations',
     'summary': 'The Factory HKA PAC driver for Panama electronic invoicing (isfe_base)',
     'description': """
