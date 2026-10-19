@@ -510,7 +510,10 @@ class HKADriver(models.AbstractModel):
             unit_price = it.get('unit_price') or 0.0
             price_total = it.get('price_total') or 0.0
             if it.get('is_negative') or unit_price < 0 or price_total < 0:
-                negative.append(it)
+                # Spread by the base over the items it discounts (R-FE1
+                # #1849): reported as per-item discount, not a bonificación.
+                if not it.get('fe_allocated'):
+                    negative.append(it)
             else:
                 positive.append(it)
         return positive, negative
@@ -527,15 +530,26 @@ class HKADriver(models.AbstractModel):
             unit_price = it.get('unit_price') or 0.0
             discount_pct = it.get('discount_pct') or 0.0
             discount_amount = (unit_price * discount_pct / 100.0) if discount_pct else 0.0
-            price_after_discount = unit_price - discount_amount
-            precio_item = price_after_discount * quantity
-            valor_itbms = abs(it.get('tax_amount') or 0.0)
+            alloc = it.get('alloc_discount') or 0.0
+            if alloc and quantity:
+                # Promo/global discount the base allocated to this item: per
+                # unit on top of the line discount; the net and its ITBMS come
+                # straight from the base (exact cents, = Odoo).
+                discount_amount += alloc / quantity
+                precio_item = it.get('net_subtotal') or 0.0
+                valor_itbms = abs(it.get('net_tax_amount') or 0.0)
+                desc_fmt = '{:.6f}'
+            else:
+                price_after_discount = unit_price - discount_amount
+                precio_item = price_after_discount * quantity
+                valor_itbms = abs(it.get('tax_amount') or 0.0)
+                desc_fmt = '{:.3f}'
             valor_total = precio_item + valor_itbms
             items.append({
                 'descripcion': self._sanitize_text(it.get('description')),
                 'cantidad': '{:.3f}'.format(quantity),
                 'precioUnitario': '{:.3f}'.format(unit_price),
-                'precioUnitarioDescuento': '{:.3f}'.format(discount_amount),
+                'precioUnitarioDescuento': desc_fmt.format(discount_amount),
                 'precioItem': '{:.2f}'.format(precio_item),
                 'valorTotal': '{:.2f}'.format(valor_total),
                 'tasaITBMS': self._tax_rate_code(it.get('tax_rate')),
@@ -678,7 +692,14 @@ class HKADriver(models.AbstractModel):
         accounting total."""
         totals = (doc.get('totals') or {})
         total = totals.get('total') or 0.0
-        items_total = sum(i.get('price_total') or 0.0 for i in (doc.get('items') or []))
+        items_total = 0.0
+        for i in (doc.get('items') or []):
+            if i.get('is_negative'):
+                if not i.get('fe_allocated'):
+                    # Magnitude after the credit-note abs(): always subtracts.
+                    items_total -= abs(i.get('price_total') or 0.0)
+            else:
+                items_total += i['net_total'] if 'net_total' in i else (i.get('price_total') or 0.0)
         discounts_total = sum(d.get('amount') or 0.0 for d in (totals.get('discounts') or []))
         return total - (items_total - discounts_total)
 
