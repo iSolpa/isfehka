@@ -2,6 +2,8 @@ from datetime import datetime
 from unittest.mock import patch
 
 from odoo.addons.account.tests.common import AccountTestInvoicingCommon
+from freezegun import freeze_time
+
 from odoo.tests import tagged
 
 
@@ -69,3 +71,15 @@ class TestFeDatetime(AccountTestInvoicingCommon):
             data = note._prepare_hka_data()
         ref = data['documento']['datosTransaccion']['listaDocsFiscalReferenciados']['docFiscalReferenciado'][0]
         self.assertEqual(ref['fechaEmisionDocFiscalReferenciado'], '2026-02-26T19:00:12-05:00')
+
+    def test_payload_emission_after_19h_keeps_the_panama_day(self):
+        invoice = self._invoice()
+        cls = type(invoice)
+        with freeze_time('2026-11-07 00:01:54'), \
+                patch.object(cls, '_prepare_hka_client_data', return_value={}), \
+                patch.object(cls, '_prepare_hka_items_data', return_value=[]), \
+                patch.object(cls, '_prepare_hka_totals_data', return_value={}):
+            data = invoice._prepare_hka_data()
+        transaction = data['documento']['datosTransaccion']
+        self.assertEqual(transaction['fechaEmision'], '2026-11-06T19:01:54-05:00')
+        self.assertEqual(transaction['fechaSalida'], '2026-11-06T19:01:54-05:00')
