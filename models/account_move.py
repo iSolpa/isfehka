@@ -1182,12 +1182,12 @@ class AccountMove(models.Model):
             update_vals = {}
             if pdf_data:
                 update_vals.update({
-                    'hka_pdf': pdf_data,
+                    'hka_pdf': base64.b64encode(pdf_data),
                     'hka_pdf_filename': f'FACT_{self.numero_documento_fiscal}.pdf'
                 })
             if xml_data:
                 update_vals.update({
-                    'hka_xml': xml_data,
+                    'hka_xml': base64.b64encode(xml_data),
                     'hka_xml_filename': f'FACT_{self.numero_documento_fiscal}.xml'
                 })
 
