@@ -163,6 +163,38 @@ class AccountMove(models.Model):
                 })
         return res
 
+    @api.model
+    def _parse_hka_datetime(self, value):
+        """HKA ISO timestamp -> naive UTC, which is what an Odoo Datetime field stores.
+
+        Dropping the offset without converting stored Panama wall-clock time in a
+        UTC field, so everything reading it was 5 hours off (#2004). A value with
+        no offset is Panama time.
+        """
+        if not value:
+            return False
+        try:
+            parsed = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+        except (ValueError, AttributeError) as e:
+            _logger.warning("Could not parse HKA datetime '%s': %s", value, e)
+            return False
+        if parsed.tzinfo is None:
+            parsed = pytz.timezone('America/Panama').localize(parsed)
+        return parsed.astimezone(pytz.utc).replace(tzinfo=None)
+
+    @api.model
+    def _get_panama_datetime_str(self, dt=None):
+        """Format a UTC datetime (default: now) as Panama time for HKA.
+
+        fields.Datetime.now() is UTC: stamping it with a literal -05:00 declared the
+        document 5 hours in the future, and after 19:00 Panama on the next day (#2004).
+        """
+        if dt is None:
+            dt = datetime.utcnow()
+        if dt.tzinfo is None:
+            dt = pytz.utc.localize(dt)
+        return dt.astimezone(pytz.timezone('America/Panama')).strftime('%Y-%m-%dT%H:%M:%S-05:00')
+
     def _send_to_hka(self):
         """Send invoice to HKA"""
         self.ensure_one()
@@ -218,15 +250,8 @@ class AccountMove(models.Model):
                 
                 # Now try to save optional date field separately
                 try:
-                    fecha_recepcion = False
                     if result['data'].get('fechaRecepcionDGI'):
-                        # Parse ISO 8601 format: 2025-11-13T15:46:53-05:00
-                        fecha_str = result['data']['fechaRecepcionDGI']
-                        # Remove timezone info and parse
-                        if 'T' in fecha_str:
-                            fecha_str = fecha_str.split('-05:00')[0].split('+')[0]  # Remove timezone
-                            fecha_recepcion = datetime.strptime(fecha_str, '%Y-%m-%dT%H:%M:%S')
-                        
+                        fecha_recepcion = self._parse_hka_datetime(result['data']['fechaRecepcionDGI'])
                         self.write({'hka_fecha_recepcion_dgi': fecha_recepcion})
                         self.env.cr.commit()
                 except Exception as e:
@@ -441,8 +466,8 @@ class AccountMove(models.Model):
                     'envioContenedor': '1',
                     'procesoGeneracion': '1',
                     'tipoVenta': '',
-                    'fechaEmision': fields.Datetime.now().strftime('%Y-%m-%dT%H:%M:%S-05:00'),
-                    'fechaSalida': fields.Datetime.now().strftime('%Y-%m-%dT%H:%M:%S-05:00'),
+                    'fechaEmision': self._get_panama_datetime_str(),
+                    'fechaSalida': self._get_panama_datetime_str(),
                     'cliente': self._prepare_hka_client_data(),
                 },
                 'listaItems': {
@@ -458,21 +483,16 @@ class AccountMove(models.Model):
                 raise UserError(_('La factura referenciada debe tener un CUFE válido'))
 
             # Use the HKA reception date (when CUFE was generated) if available to match CUFE date
-            # NOTE: hka_fecha_recepcion_dgi is stored as Panama time (not UTC) due to how HKA response is parsed
-            # So we DON'T convert - just format directly with the Panama timezone offset
+            # hka_fecha_recepcion_dgi is stored in UTC, like any Odoo Datetime (#2004)
             ref_dt = self.reversed_entry_id.hka_fecha_recepcion_dgi or self.reversed_entry_id.invoice_date
             if ref_dt:
                 if isinstance(ref_dt, datetime):
-                    # hka_fecha_recepcion_dgi is already in Panama time, just format with offset
-                    fecha_ref_str = ref_dt.strftime('%Y-%m-%dT%H:%M:%S-05:00')
+                    fecha_ref_str = self._get_panama_datetime_str(ref_dt)
                 else:
                     # It's a date (invoice_date), format as midnight Panama time
                     fecha_ref_str = ref_dt.strftime('%Y-%m-%dT00:00:00-05:00')
             else:
-                panama_tz = pytz.timezone('America/Panama')
-                now_utc = pytz.utc.localize(datetime.utcnow())
-                now_local = now_utc.astimezone(panama_tz)
-                fecha_ref_str = now_local.strftime('%Y-%m-%dT%H:%M:%S-05:00')
+                fecha_ref_str = self._get_panama_datetime_str()
 
             data['documento']['datosTransaccion']['informacionInteres'] = 'Factura de nota de credito referenciada'
             data['documento']['datosTransaccion']['listaDocsFiscalReferenciados'] = {
