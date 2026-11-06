@@ -4,6 +4,9 @@ import base64
 import logging
 import re
 import unicodedata
+from datetime import datetime
+
+import pytz
 
 _logger = logging.getLogger(__name__)
 
@@ -341,14 +344,21 @@ class HKADriver(models.AbstractModel):
     # ------------------------------------------------------------------
     # Neutral doc -> HKA 'documento' payload
     # ------------------------------------------------------------------
+    @api.model
+    def _hka_panama_str(self, value):
+        """Naive UTC datetime -> Panama time for HKA; a plain date stays at midnight."""
+        if not value:
+            return ''
+        if isinstance(value, datetime):
+            value = pytz.utc.localize(value).astimezone(pytz.timezone('America/Panama'))
+        return value.strftime('%Y-%m-%dT%H:%M:%S-05:00')
+
     def _build_hka_documento(self, doc):
         """Serialize the neutral FE document into HKA's ``documento`` block."""
-        # NOTE: the legacy module stamped the (naive UTC) timestamp with a
-        # literal -05:00 offset; preserved as-is for payload parity with years
-        # of accepted production documents.
-        fecha = doc.get('issue_datetime')
-        fecha_str = (fecha.strftime('%Y-%m-%dT%H:%M:%S-05:00')
-                     if fecha else '')
+        # issue_datetime is naive UTC. Stamping it with -05:00 as is declared the
+        # document 5 hours in the future, and after 19:00 Panama on the next day
+        # (#2004).
+        fecha_str = self._hka_panama_str(doc.get('issue_datetime'))
         buyer = doc.get('buyer') or {}
         items = self._build_items(doc)
 
@@ -389,8 +399,7 @@ class HKADriver(models.AbstractModel):
             if not ref.get('cufe'):
                 raise UserError(_('La factura referenciada debe tener un CUFE válido'))
             ref_dt = ref.get('date')
-            fecha_ref = (ref_dt.strftime('%Y-%m-%dT%H:%M:%S-05:00')
-                         if hasattr(ref_dt, 'strftime') else (fecha_str or ''))
+            fecha_ref = self._hka_panama_str(ref_dt) or fecha_str or ''
             dt = documento['datosTransaccion']
             dt['informacionInteres'] = 'Factura de nota de credito referenciada'
             dt['listaDocsFiscalReferenciados'] = {
