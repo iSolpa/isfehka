@@ -16,66 +16,66 @@ class AccountMove(models.Model):
         ('sent', 'Enviado'),
         ('cancelled', 'Anulado'),
         ('error', 'Error')
-    ], string='Estado HKA', default='draft', tracking=True)
+    ], string='Estado HKA', default='draft', tracking=True, copy=False)
 
     hka_cufe = fields.Char(
         string='CUFE',
         readonly=True,
-        help='Código Único de Factura Electrónica'
+        help='Código Único de Factura Electrónica', copy=False
     )
     
     hka_qr = fields.Char(
         string='QR URL',
         readonly=True,
-        help='URL del código QR de la DGI para validación'
+        help='URL del código QR de la DGI para validación', copy=False
     )
     
     hka_nro_protocolo_autorizacion = fields.Char(
         string='Número de Protocolo de Autorización',
         readonly=True,
-        help='Número de protocolo de autorización de DGI'
+        help='Número de protocolo de autorización de DGI', copy=False
     )
     
     hka_fecha_recepcion_dgi = fields.Datetime(
         string='Fecha de Recepción DGI',
         readonly=True,
-        help='Fecha de autorización ante la DGI'
+        help='Fecha de autorización ante la DGI', copy=False
     )
 
     hka_pdf = fields.Binary(
         string='PDF HKA',
         readonly=True,
         attachment=True,
-        help='PDF del documento fiscal'
+        help='PDF del documento fiscal', copy=False
     )
 
     hka_pdf_filename = fields.Char(
         string='Nombre PDF HKA',
-        readonly=True
+        readonly=True, copy=False
     )
 
     hka_xml = fields.Binary(
         string='XML HKA',
         readonly=True,
         attachment=True,
-        help='XML del documento fiscal'
+        help='XML del documento fiscal', copy=False
     )
 
     hka_xml_filename = fields.Char(
         string='Nombre XML HKA',
-        readonly=True
+        readonly=True, copy=False
     )
 
     numero_documento_fiscal = fields.Char(
         string='Número Documento Fiscal',
         readonly=True,
         size=10,
-        help='Número del documento fiscal asignado por HKA'
+        help='Número del documento fiscal asignado por HKA', copy=False
     )
 
     hka_message = fields.Text(
         string='Mensaje HKA',
-        readonly=True
+        readonly=True, copy=False
     )
 
     @api.model
@@ -118,7 +118,7 @@ class AccountMove(models.Model):
 
     motivo_anulacion = fields.Text(
         string='Motivo de Anulación',
-        help='Razón por la cual se anula el documento'
+        help='Razón por la cual se anula el documento', copy=False
     )
 
     def action_post(self):

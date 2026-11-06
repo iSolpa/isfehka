@@ -101,3 +101,18 @@ class TestFeDatetime(AccountTestInvoicingCommon):
         self.env.invalidate_all()
         self.assertEqual(invoice.hka_fecha_recepcion_dgi, datetime(2026, 6, 3, 0, 1, 56))
         self.assertFalse(empty.hka_fecha_recepcion_dgi)
+
+    def test_duplicate_is_a_clean_draft(self):
+        source = self._invoice(tipo_documento='01')
+        source.write({
+            'hka_status': 'sent', 'hka_cufe': 'FE-ORIG', 'hka_qr': 'qr', 'hka_message': 'ok',
+            'hka_nro_protocolo_autorizacion': '123', 'numero_documento_fiscal': '0000000138',
+            'hka_fecha_recepcion_dgi': datetime(2026, 11, 6, 16, 52, 41),
+        })
+        duplicate = source.copy()
+        self.assertEqual(duplicate.hka_status, 'draft')
+        for field in ('hka_cufe', 'hka_qr', 'hka_message', 'hka_nro_protocolo_autorizacion',
+                      'numero_documento_fiscal', 'hka_fecha_recepcion_dgi', 'hka_pdf', 'hka_xml'):
+            self.assertFalse(duplicate[field], field)
+        self.assertEqual(duplicate.tipo_documento, '01')
+
