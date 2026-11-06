@@ -172,6 +172,25 @@ class AccountMove(models.Model):
                 })
         return res
 
+    @api.model
+    def _parse_hka_datetime(self, value):
+        """HKA ISO timestamp -> naive UTC, which is what an Odoo Datetime field stores.
+
+        Dropping tzinfo without converting stored Panama wall-clock time in a UTC
+        field, so everything reading it was 5 hours off (#2004). A value with no
+        offset is Panama time.
+        """
+        if not value:
+            return False
+        try:
+            parsed = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+        except (ValueError, AttributeError) as e:
+            _logger.warning("Could not parse HKA datetime '%s': %s", value, e)
+            return False
+        if parsed.tzinfo is None:
+            parsed = pytz.timezone('America/Panama').localize(parsed)
+        return parsed.astimezone(pytz.utc).replace(tzinfo=None)
+
     def _send_to_hka(self):
         """Send invoice to HKA"""
         self.ensure_one()
@@ -201,17 +220,8 @@ class AccountMove(models.Model):
                 self.env.cr.commit()  # Commit the transaction to ensure we don't lose the CUFE
                 # Parse the authorization date from HKA response
                 fecha_recepcion = result['data'].get('fechaRecepcionDGI', '')
-                parsed_fecha = False
-                if fecha_recepcion:
-                    try:
-                        # Parse ISO format datetime with timezone: 2025-07-28T09:08:13-05:00
-                        dt_with_tz = datetime.fromisoformat(fecha_recepcion.replace('Z', '+00:00'))
-                        # Convert to naive datetime (remove timezone) as Odoo expects
-                        parsed_fecha = dt_with_tz.replace(tzinfo=None)
-                    except (ValueError, AttributeError) as e:
-                        _logger.warning(f"Could not parse fechaRecepcionDGI '{fecha_recepcion}': {e}")
-                        parsed_fecha = False
-                
+                parsed_fecha = self._parse_hka_datetime(fecha_recepcion)
+
                 self.write({
                     'hka_status': 'sent',
                     'hka_cufe': result['data'].get('cufe', ''),
